@@ -1,0 +1,102 @@
+// Initial Leaderboard Data
+
+export const INITIAL_LEADERBOARD = [
+  {
+    rank: 1,
+    studentId: 'STU-2026-002',
+    name: 'กานต์รวี เจริญศิลป์',
+    school: 'โรงเรียนมหิดลวิทยานุสรณ์',
+    elo: 1920,
+    wins: 48,
+    draws: 3,
+    losses: 7,
+    points: 2450,
+    badge: 'Grandmaster',
+    favoriteGame: 'เอแมท (A-Math)',
+    recentForm: ['W', 'W', 'W', 'W', 'D']
+  },
+  {
+    rank: 2,
+    studentId: 'STU-2026-001',
+    name: 'วรเมธ ปัญญาวงศ์',
+    school: 'โรงเรียนเตรียมอุดมศึกษา',
+    elo: 1850,
+    wins: 31,
+    draws: 4,
+    losses: 7,
+    points: 2180,
+    badge: 'Master',
+    favoriteGame: 'ซูโดกุ (Sudoku)',
+    recentForm: ['W', 'L', 'W', 'W', 'W']
+  },
+  {
+    rank: 3,
+    studentId: 'STU-2026-003',
+    name: 'ภูริณัฐ ธนกิจโกศล',
+    school: 'โรงเรียนสวนกุหลาบวิทยาลัย',
+    elo: 1710,
+    wins: 16,
+    draws: 2,
+    losses: 7,
+    points: 1690,
+    badge: 'Expert',
+    favoriteGame: 'เกม 24 (Make 24)',
+    recentForm: ['W', 'W', 'L', 'D', 'W']
+  },
+  {
+    rank: 4,
+    studentId: 'STU-2026-004',
+    name: 'ชลิตา วัฒนกุล',
+    school: 'โรงเรียนสามเสนวิทยาลัย',
+    elo: 1680,
+    wins: 14,
+    draws: 5,
+    losses: 6,
+    points: 1540,
+    badge: 'Expert',
+    favoriteGame: 'คิดเลขเร็ว (Speed Math)',
+    recentForm: ['W', 'L', 'W', 'L', 'W']
+  },
+  {
+    rank: 5,
+    studentId: 'STU-2026-005',
+    name: 'ณภัทร สิริโชค',
+    school: 'โรงเรียนบดินทรเดชา (สิงห์ สิงหเสนี)',
+    elo: 1620,
+    wins: 12,
+    draws: 3,
+    losses: 8,
+    points: 1410,
+    badge: 'Specialist',
+    favoriteGame: 'จินตคณิต (Flash Anzan)',
+    recentForm: ['L', 'W', 'W', 'D', 'L']
+  },
+  {
+    rank: 6,
+    studentId: 'STU-2026-006',
+    name: 'อภิชญา บุญประเสริฐ',
+    school: 'โรงเรียนขอนแก่นวิทยายน',
+    elo: 1590,
+    wins: 11,
+    draws: 4,
+    losses: 9,
+    points: 1320,
+    badge: 'Specialist',
+    favoriteGame: 'หมากฮอส (Thai Checkers)',
+    recentForm: ['W', 'W', 'L', 'W', 'L']
+  },
+  {
+    rank: 7,
+    studentId: 'STU-2026-007',
+    name: 'ธีรภัทร์ รัตนดิลก',
+    school: 'โรงเรียนหาดใหญ่วิทยาลัย',
+    elo: 1530,
+    wins: 9,
+    draws: 2,
+    losses: 10,
+    points: 1190,
+    badge: 'Candidate',
+    favoriteGame: 'เกม 24 (Make 24)',
+    recentForm: ['L', 'L', 'W', 'W', 'D']
+  }
+];
