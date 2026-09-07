@@ -3,21 +3,21 @@
 export const ADMIN_ACCOUNTS = [
   {
     id: 'admin_1',
-    email: 'admin1@matholympiad.org',
-    password: 'password123',
-    name: 'อ.ดร. ธนากร วิทยคณิต (Head Admin)',
+    email: 'uhg5452@gmail.com',
+    password: 'math21',
+    name: 'น.ส. สุจารี สุขีวงศ์',
     role: 'admin',
-    avatar: '👨‍🏫',
-    badge: 'Chief Arbiter'
+    avatar: '👩‍🏫',
+    badge: 'Head Admin'
   },
   {
     id: 'admin_2',
-    email: 'admin2@matholympiad.org',
-    password: 'password123',
-    name: 'อ. พิมพ์พิศา รัตนโชติ (Tournament Director)',
+    email: 'pongkunkalapukdee@gmail.com',
+    password: 'math14',
+    name: 'นายปองคุณ กาฬภักดี',
     role: 'admin',
-    avatar: '👩‍🏫',
-    badge: 'Operations Lead'
+    avatar: '👨‍🏫',
+    badge: 'Tournament Director'
   }
 ];
 

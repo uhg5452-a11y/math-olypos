@@ -18,8 +18,18 @@ console.log('Math Olympiad Hub Node.js API Service initializing...');
 
 // Designated 2 Admin Credentials
 const AUTHORIZED_ADMINS = [
-  'admin1@matholympiad.org',
-  'admin2@matholympiad.org'
+  {
+    email: 'uhg5452@gmail.com',
+    password: 'math21',
+    name: 'น.ส. สุจารี สุขีวงศ์',
+    role: 'Head Admin'
+  },
+  {
+    email: 'pongkunkalapukdee@gmail.com',
+    password: 'math14',
+    name: 'นายปองคุณ กาฬภักดี',
+    role: 'Tournament Director'
+  }
 ];
 
 // Health Check
@@ -35,12 +45,16 @@ app.post('/api/auth/admin-login', (req, res) => {
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  if (AUTHORIZED_ADMINS.includes(cleanEmail) && password === 'password123') {
+  const admin = AUTHORIZED_ADMINS.find(
+    a => a.email.toLowerCase() === cleanEmail && a.password === password
+  );
+
+  if (admin) {
     return res.json({
       success: true,
       role: 'admin',
-      email: cleanEmail,
-      name: cleanEmail.includes('1') ? 'Head Admin (Arbiter)' : 'Tournament Director'
+      email: admin.email,
+      name: admin.name
     });
   }
 

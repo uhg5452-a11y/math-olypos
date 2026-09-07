@@ -33,8 +33,8 @@
 ## 🔐 บัญชีสำหรับทดสอบ (Demo Accounts)
 
 ### บัญชีแอดมิน (จำกัดเฉพาะ 2 บัญชี):
-1. **Email**: `admin1@matholympiad.org` | **Password**: `password123` (อ.ดร. ธนากร วิทยคณิต - Chief Arbiter)
-2. **Email**: `admin2@matholympiad.org` | **Password**: `password123` (อ. พิมพ์พิศา รัตนโชติ - Operations Lead)
+1. **Email**: `uhg5452@gmail.com` | **Password**: `math21` (น.ส. สุจารี สุขีวงศ์ - Head Admin)
+2. **Email**: `pongkunkalapukdee@gmail.com` | **Password**: `math14` (นายปองคุณ กาฬภักดี - Tournament Director)
 
 ### บัญชีนักเรียน:
 1. **Student ID**: `STU-2026-001` | **Password**: `password123` (วรเมธ ปัญญาวงศ์ - เตรียมอุดมศึกษา)

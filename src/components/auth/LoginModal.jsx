@@ -172,7 +172,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                 <input
                   type="email"
                   required
-                  placeholder="เช่น admin1@matholympiad.org"
+                  placeholder="เช่น uhg5452@gmail.com"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-sm"
