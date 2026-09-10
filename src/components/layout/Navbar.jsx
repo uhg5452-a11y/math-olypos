@@ -30,7 +30,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
                 Math Olympiad <span className="text-[#008DDA] glow-primary">Hub</span>
               </span>
               <span className="hidden sm:block text-[10px] text-slate-400 font-medium tracking-wide">
-                ศูนย์การแข่งขันและฝึกซ้อมคณิตศาสตร์
+                ศูนย์การแข่งขันและฝึกซ้อมคณิตศาสตร์ภายในโรงเรียน
               </span>
             </div>
           </div>

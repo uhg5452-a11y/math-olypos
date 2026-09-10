@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ADMIN_ACCOUNTS, INITIAL_STUDENTS } from '../data/mockUsers';
+import { ADMIN_ACCOUNTS, ADMIN_WHITELIST, INITIAL_STUDENTS } from '../data/mockUsers';
 import { storageService } from '../services/storageService';
 
 const AuthContext = createContext();
@@ -17,28 +17,82 @@ export function AuthProvider({ children }) {
     storageService.saveStudents(students);
   }, [students]);
 
-  // Login for Students with Student ID
-  const loginStudent = (studentId, password) => {
+  // Login for Students with Student ID + Individual Private PIN
+  const loginStudent = (studentId, privatePin) => {
     setAuthError(null);
     const cleanId = studentId.trim().toUpperCase();
+    const cleanPin = (privatePin || '').trim();
+
     const student = students.find(
-      s => s.studentId.toUpperCase() === cleanId && s.password === password
+      s => s.studentId.toUpperCase() === cleanId && s.privatePin === cleanPin
     );
 
     if (student) {
       setCurrentUser(student);
       return { success: true, user: student };
     } else {
-      const errorMsg = 'รหัสนักเรียนหรือรหัสผ่านไม่ถูกต้อง (ตัวอย่าง: STU-2026-001 / password123)';
+      const errorMsg = 'รหัสนักเรียนหรือรหัสเฉพาะส่วนตัว (Private PIN) ไม่ถูกต้อง';
       setAuthError(errorMsg);
       return { success: false, error: errorMsg };
     }
   };
 
-  // Login for Admins (Strictly 2 accounts)
+  // Register New School Student with their own unique Private PIN
+  const registerStudent = (studentData) => {
+    setAuthError(null);
+    const cleanId = studentData.studentId.trim().toUpperCase();
+    const cleanPin = studentData.privatePin.trim();
+
+    // Check if Student ID already exists
+    const existing = students.find(s => s.studentId.toUpperCase() === cleanId);
+    if (existing) {
+      const errorMsg = `รหัสนักเรียน ${cleanId} มีอยู่ในระบบแล้ว กรุณาเข้าสู่ระบบด้วย Private PIN ของคุณ`;
+      setAuthError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    const newStudent = {
+      id: 'student_' + Date.now(),
+      studentId: cleanId,
+      privatePin: cleanPin,
+      name: studentData.name.trim(),
+      school: studentData.school.trim() || 'โรงเรียนตัวแทนศูนย์คณิตศาสตร์',
+      grade: studentData.grade.trim() || 'มัธยมศึกษา',
+      role: 'student',
+      elo: 1500,
+      avatar: '🧑‍🎓',
+      registeredTournaments: [],
+      stats: {
+        mathElo: 1500,
+        totalMatches: 0,
+        wins: 0,
+        draws: 0,
+        losses: 0,
+        goldMedals: 0,
+        silverMedals: 0,
+        bronzeMedals: 0,
+        practiceCompleted: 0
+      }
+    };
+
+    const updatedList = [newStudent, ...students];
+    setStudents(updatedList);
+    setCurrentUser(newStudent);
+    return { success: true, user: newStudent };
+  };
+
+  // Login for Admins (Strict Whitelist of the 2 creator accounts)
   const loginAdmin = (email, password) => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
+
+    // Check strict whitelist
+    if (!ADMIN_WHITELIST.includes(cleanEmail)) {
+      const errorMsg = 'การเข้าถึงถูกปฏิเสธ: อีเมลนี้ไม่ได้รับอนุญาตในระบบ Whitelist แอดมิน (จำกัดเฉพาะ 2 บัญชีผู้สร้างเท่านั้น)';
+      setAuthError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
     const admin = ADMIN_ACCOUNTS.find(
       a => a.email.toLowerCase() === cleanEmail && a.password === password
     );
@@ -47,7 +101,7 @@ export function AuthProvider({ children }) {
       setCurrentUser(admin);
       return { success: true, user: admin };
     } else {
-      const errorMsg = 'อีเมลหรือรหัสผ่านแอดมินไม่ถูกต้อง (จำกัดเฉพาะ 2 บัญชีที่ได้รับอนุญาต)';
+      const errorMsg = 'รหัสผ่านแอดมินไม่ถูกต้อง';
       setAuthError(errorMsg);
       return { success: false, error: errorMsg };
     }
@@ -78,7 +132,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin' && ADMIN_WHITELIST.includes(currentUser?.email?.toLowerCase());
   const isStudent = currentUser?.role === 'student';
 
   return (
@@ -88,13 +142,16 @@ export function AuthProvider({ children }) {
         isAdmin,
         isStudent,
         loginStudent,
+        registerStudent,
         loginAdmin,
         logout,
         switchDemoUser,
         updateStudentData,
         authError,
         setAuthError,
-        adminAccounts: ADMIN_ACCOUNTS
+        adminAccounts: ADMIN_ACCOUNTS,
+        adminWhitelist: ADMIN_WHITELIST,
+        students
       }}
     >
       {children}

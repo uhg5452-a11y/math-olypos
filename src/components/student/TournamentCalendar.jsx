@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, Bell, Trophy, CheckCircle2, ChevronRight, AlertCircle, Sparkles } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Bell, Trophy, CheckCircle2, ChevronRight, AlertCircle, Sparkles, Eye } from 'lucide-react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../context/AuthContext';
+import LiveSpectatorModal from '../spectator/LiveSpectatorModal';
 
 export default function TournamentCalendar() {
   const { tournaments, trigger15MinAlert } = useTournament();
   const { currentUser } = useAuth();
   const [selectedDay, setSelectedDay] = useState('all');
+  const [spectatorMatch, setSpectatorMatch] = useState(null);
+  const [spectatorTournament, setSpectatorTournament] = useState(null);
 
   // Sort tournaments by start date
   const sortedTournaments = [...tournaments].sort(
@@ -103,20 +106,46 @@ export default function TournamentCalendar() {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => trigger15MinAlert(tourney.id)}
-                    className="flex-shrink-0 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 text-xs font-semibold transition-all flex items-center gap-1.5"
-                    title="ทดสอบแจ้งเตือนก่อนแข่ง 15 นาที"
-                  >
-                    <Bell className="w-3.5 h-3.5 text-amber-400" />
-                    ตั้งปลุก 15 น.
-                  </button>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {tourney.matches && tourney.matches.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const matchToWatch = tourney.matches.find(m => m.status === 'live') || tourney.matches[0];
+                          setSpectatorMatch(matchToWatch);
+                          setSpectatorTournament(tourney);
+                        }}
+                        className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-rose-400 animate-pulse" /> เข้าชมสด
+                      </button>
+                    )}
+
+                    <button
+                      onClick={() => trigger15MinAlert(tourney.id)}
+                      className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 text-xs font-semibold transition-all flex items-center gap-1.5"
+                      title="ทดสอบแจ้งเตือนก่อนแข่ง 15 นาที"
+                    >
+                      <Bell className="w-3.5 h-3.5 text-amber-400" />
+                      ตั้งปลุก 15 น.
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Live Spectator Modal */}
+      {spectatorMatch && (
+        <LiveSpectatorModal
+          isOpen={Boolean(spectatorMatch)}
+          onClose={() => setSpectatorMatch(null)}
+          match={spectatorMatch}
+          tournament={spectatorTournament}
+        />
+      )}
     </div>
   );
 }

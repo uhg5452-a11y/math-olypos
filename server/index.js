@@ -61,18 +61,35 @@ app.post('/api/auth/admin-login', (req, res) => {
   return res.status(403).json({ error: 'Unauthorized: Account is not in the 2 permitted admin slots' });
 });
 
-// Student Login
+// Student Login with Private PIN
 app.post('/api/auth/student-login', (req, res) => {
-  const { studentId, password } = req.body;
-  if (!studentId || !password) {
-    return res.status(400).json({ error: 'Student ID and password required' });
+  const { studentId, privatePin } = req.body;
+  if (!studentId || !privatePin) {
+    return res.status(400).json({ error: 'Student ID and Private PIN required' });
   }
 
   return res.json({
     success: true,
     role: 'student',
     studentId: studentId.toUpperCase(),
-    name: 'นักเรียนตัวแทนศูนย์คณิตศาสตร์'
+    name: 'นักเรียนในโรงเรียน'
+  });
+});
+
+// Student Registration (Onboarding for all school students)
+app.post('/api/auth/student-register', (req, res) => {
+  const { studentId, name, school, grade, privatePin } = req.body;
+  if (!studentId || !name || !privatePin) {
+    return res.status(400).json({ error: 'Student ID, Name, and Private PIN required' });
+  }
+
+  return res.json({
+    success: true,
+    role: 'student',
+    studentId: studentId.toUpperCase(),
+    name,
+    school: school || 'โรงเรียนมัธยมวิทยาคม',
+    grade: grade || 'มัธยมศึกษา'
   });
 });
 

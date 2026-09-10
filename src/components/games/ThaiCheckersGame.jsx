@@ -49,7 +49,7 @@ export default function ThaiCheckersGame() {
     setCapturedByP2(0);
   };
 
-  // Get valid moves for a piece at [r, c]
+  // Get valid moves for a piece at [r, c] according to Thai Checkers rules
   const getMovesForPiece = (b, r, c, player) => {
     const piece = b[r][c];
     if (piece === 0 || Math.sign(piece) !== player) return [];
@@ -57,39 +57,86 @@ export default function ThaiCheckersGame() {
     const isKing = Math.abs(piece) === 2;
     const moves = [];
 
-    // Directions
-    const directions = isKing
-      ? [[-1, -1], [-1, 1], [1, -1], [1, 1]]
-      : player === 1
-      ? [[-1, -1], [-1, 1]] // Player 1 moves UP
-      : [[1, -1], [1, 1]];  // Player -1 moves DOWN
+    if (!isKing) {
+      // 1. เบี้ยธรรมดา: เดินหน้าได้อย่างเดียว ห้ามเดินถอยหลัง และห้ามกินถอยหลัง
+      const forwardDirections = player === 1
+        ? [[-1, -1], [-1, 1]] // Player 1 (ฝ่ายฟ้า) เดินขึ้นแถวบน (-1)
+        : [[1, -1], [1, 1]];  // Player -1 (ฝ่ายแดง/บอท) เดินลงแถวล่าง (+1)
 
-    // Check normal moves
-    directions.forEach(([dr, dc]) => {
-      const nr = r + dr;
-      const nc = c + dc;
-      if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && b[nr][nc] === 0) {
-        moves.push({ toR: nr, toC: nc, isJump: false });
-      }
-    });
+      // เดินปกติ 1 ช่องทแยงไปข้างหน้า
+      forwardDirections.forEach(([dr, dc]) => {
+        const nr = r + dr;
+        const nc = c + dc;
+        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && b[nr][nc] === 0) {
+          moves.push({ toR: nr, toC: nc, isJump: false });
+        }
+      });
 
-    // Check jump captures (Thai checkers: can jump over enemy)
-    const jumpDirs = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-    jumpDirs.forEach(([dr, dc]) => {
-      const midR = r + dr;
-      const midC = c + dc;
-      const landR = r + dr * 2;
-      const landC = c + dc * 2;
+      // กระโดดกินไปข้างหน้าได้อย่างเดียว
+      forwardDirections.forEach(([dr, dc]) => {
+        const midR = r + dr;
+        const midC = c + dc;
+        const landR = r + dr * 2;
+        const landC = c + dc * 2;
 
-      if (
-        landR >= 0 && landR < 8 && landC >= 0 && landC < 8 &&
-        b[landR][landC] === 0 &&
-        b[midR][midC] !== 0 &&
-        Math.sign(b[midR][midC]) !== player
-      ) {
-        moves.push({ toR: landR, toC: landC, isJump: true, midR, midC });
-      }
-    });
+        if (
+          landR >= 0 && landR < 8 && landC >= 0 && landC < 8 &&
+          b[landR][landC] === 0 &&
+          b[midR][midC] !== 0 &&
+          Math.sign(b[midR][midC]) !== player
+        ) {
+          moves.push({ toR: landR, toC: landC, isJump: true, midR, midC });
+        }
+      });
+    } else {
+      // 2. ตัวฮอส (King): เดินยาวทางไกลตามแนวทแยง (4 ทิศทาง) และกินยาวทางไกลทั้งหน้าและหลัง
+      const kingDirections = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+
+      kingDirections.forEach(([dr, dc]) => {
+        let step = 1;
+        let enemyFound = null; // { r, c }
+
+        while (true) {
+          const currR = r + dr * step;
+          const currC = c + dc * step;
+
+          // ออกนอกกระดาน
+          if (currR < 0 || currR >= 8 || currC < 0 || currC >= 8) break;
+
+          const cellPiece = b[currR][currC];
+
+          if (!enemyFound) {
+            if (cellPiece === 0) {
+              // เดินปกติทางไกล (Long-range move)
+              moves.push({ toR: currR, toC: currC, isJump: false });
+            } else if (Math.sign(cellPiece) === player) {
+              // เจอหมากฝั่งเดียวกัน ขวางทาง
+              break;
+            } else {
+              // เจอหมากฝ่ายตรงข้ามตัวแรกในแนวทแยงนี้
+              enemyFound = { r: currR, c: currC };
+            }
+          } else {
+            // หลังจากเจอหมากฝ่ายตรงข้าม ตรวจสอบช่องว่างด้านหลังเพื่อกินยาวทางไกล (Long-range capture)
+            if (cellPiece === 0) {
+              // สามารถเลือกลงช่องว่างด้านหลังตัวกินได้ทุกช่อง
+              moves.push({
+                toR: currR,
+                toC: currC,
+                isJump: true,
+                midR: enemyFound.r,
+                midC: enemyFound.c
+              });
+            } else {
+              // มีหมากตัวอื่นขวางด้านหลัง
+              break;
+            }
+          }
+
+          step++;
+        }
+      });
+    }
 
     return moves;
   };
@@ -326,11 +373,12 @@ export default function ThaiCheckersGame() {
           </div>
 
           {/* Rules Reminder */}
-          <div className="bg-[#0B192C]/50 p-4 rounded-xl border border-white/5 text-xs text-slate-400 space-y-1">
-            <div className="font-bold text-slate-300">กติกาหมากฮอสไทย:</div>
-            <div>• เบี้ยธรรมดาเดินทแยงไปข้างหน้าทีละ 1 ช่อง</div>
-            <div>• หากมีหมากฝ่ายตรงข้ามขวางและมีช่องว่างด้านหลัง ต้องกระโดดกิน</div>
-            <div>• เมื่อเบี้ยเดินไปถึงแถวสุดฝั่งตรงข้าม จะกลายเป็น 👑 ฮอส (เดินทแยงหน้า-หลังได้)</div>
+          <div className="bg-[#0B192C]/50 p-4 rounded-xl border border-white/5 text-xs text-slate-400 space-y-1.5">
+            <div className="font-bold text-slate-200 flex items-center gap-1">
+              <span>👑</span> กติกาหมากฮอสไทย:
+            </div>
+            <div>• <strong className="text-cyan-300">ตัวหมากปกติ (เบี้ย):</strong> เดินหน้าได้อย่างเดียว 1 ช่อง <strong>ห้ามเดินถอยหลัง และห้ามกินถอยหลัง</strong></div>
+            <div>• <strong className="text-amber-300">ตัวฮอส (King):</strong> เมื่อเข้าฮอสแล้ว สามารถ<strong>เดินยาวทางไกล</strong>ตามแนวทแยง 4 ทิศทาง และสามารถ<strong>กินยาวทางไกล</strong>ข้ามหมากฝ่ายตรงข้ามได้ทั้งหน้าและหลัง</div>
           </div>
         </div>
       </div>

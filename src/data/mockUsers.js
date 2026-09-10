@@ -1,4 +1,9 @@
-// Mock Users: Student Accounts & 2 Designated Admin Accounts
+// Mock Users: Student Accounts & 2 Designated Admin Whitelist Accounts
+
+export const ADMIN_WHITELIST = [
+  'uhg5452@gmail.com',
+  'pongkunkalapukdee@gmail.com'
+];
 
 export const ADMIN_ACCOUNTS = [
   {
@@ -8,7 +13,7 @@ export const ADMIN_ACCOUNTS = [
     name: 'น.ส. สุจารี สุขีวงศ์',
     role: 'admin',
     avatar: '👩‍🏫',
-    badge: 'Head Admin'
+    badge: 'Head Admin & Creator'
   },
   {
     id: 'admin_2',
@@ -17,18 +22,19 @@ export const ADMIN_ACCOUNTS = [
     name: 'นายปองคุณ กาฬภักดี',
     role: 'admin',
     avatar: '👨‍🏫',
-    badge: 'Tournament Director'
+    badge: 'Tournament Director & Creator'
   }
 ];
 
+// Student Database supporting all school students with individual unique Private PINs
 export const INITIAL_STUDENTS = [
   {
     id: 'student_1',
     studentId: 'STU-2026-001',
-    password: 'password123',
+    privatePin: '1478', // Unique private PIN for student 1
     name: 'วรเมธ ปัญญาวงศ์',
     school: 'โรงเรียนเตรียมอุดมศึกษา',
-    grade: 'มัธยมศึกษาปีที่ 5',
+    grade: 'มัธยมศึกษาปีที่ 5/1',
     role: 'student',
     elo: 1850,
     avatar: '🧑‍🎓',
@@ -48,10 +54,10 @@ export const INITIAL_STUDENTS = [
   {
     id: 'student_2',
     studentId: 'STU-2026-002',
-    password: 'password123',
+    privatePin: '2580', // Unique private PIN for student 2
     name: 'กานต์รวี เจริญศิลป์',
     school: 'โรงเรียนมหิดลวิทยานุสรณ์',
-    grade: 'มัธยมศึกษาปีที่ 6',
+    grade: 'มัธยมศึกษาปีที่ 6/2',
     role: 'student',
     elo: 1920,
     avatar: '👩‍🎓',
@@ -71,10 +77,10 @@ export const INITIAL_STUDENTS = [
   {
     id: 'student_3',
     studentId: 'STU-2026-003',
-    password: 'password123',
+    privatePin: '3691', // Unique private PIN for student 3
     name: 'ภูริณัฐ ธนกิจโกศล',
     school: 'โรงเรียนสวนกุหลาบวิทยาลัย',
-    grade: 'มัธยมศึกษาปีที่ 4',
+    grade: 'มัธยมศึกษาปีที่ 4/5',
     role: 'student',
     elo: 1710,
     avatar: '🧑‍🎓',
@@ -89,6 +95,52 @@ export const INITIAL_STUDENTS = [
       silverMedals: 3,
       bronzeMedals: 2,
       practiceCompleted: 88
+    }
+  },
+  {
+    id: 'student_4',
+    studentId: 'STU-2026-004',
+    privatePin: '4826', // Unique private PIN for student 4
+    name: 'ชลิตา วัฒนกุล',
+    school: 'โรงเรียนสามเสนวิทยาลัย',
+    grade: 'มัธยมศึกษาปีที่ 5/3',
+    role: 'student',
+    elo: 1680,
+    avatar: '👩‍🎓',
+    registeredTournaments: ['tourney-1'],
+    stats: {
+      mathElo: 1680,
+      totalMatches: 22,
+      wins: 14,
+      draws: 5,
+      losses: 3,
+      goldMedals: 2,
+      silverMedals: 1,
+      bronzeMedals: 1,
+      practiceCompleted: 64
+    }
+  },
+  {
+    id: 'student_5',
+    studentId: 'STU-2026-005',
+    privatePin: '5937', // Unique private PIN for student 5
+    name: 'ณภัทร สิริโชค',
+    school: 'โรงเรียนบดินทรเดชา (สิงห์ สิงหเสนี)',
+    grade: 'มัธยมศึกษาปีที่ 3/1',
+    role: 'student',
+    elo: 1620,
+    avatar: '🧑‍🎓',
+    registeredTournaments: [],
+    stats: {
+      mathElo: 1620,
+      totalMatches: 19,
+      wins: 12,
+      draws: 3,
+      losses: 4,
+      goldMedals: 1,
+      silverMedals: 2,
+      bronzeMedals: 0,
+      practiceCompleted: 52
     }
   }
 ];
