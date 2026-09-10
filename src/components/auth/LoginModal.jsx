@@ -13,7 +13,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   // New Student Registration State
   const [regStudentId, setRegStudentId] = useState('');
   const [regName, setRegName] = useState('');
-  const [regSchool, setRegSchool] = useState('โรงเรียนมัธยมวิทยาคม');
+  const [regSchool, setRegSchool] = useState('โรงเรียนบรรหารแจ่มใสวิทยา 3');
   const [regGrade, setRegGrade] = useState('มัธยมศึกษาปีที่ 4/1');
   const [regPin, setRegPin] = useState('');
   const [regConfirmPin, setRegConfirmPin] = useState('');

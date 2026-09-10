@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, Calendar, Gamepad2, Award, Shield, User, LogOut, LogIn, Bell, Sparkles } from 'lucide-react';
+import { Trophy, Calendar, Gamepad2, Award, Shield, User, LogOut, LogIn, Bell, Sparkles, Tv } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTournament } from '../../context/TournamentContext';
 
@@ -29,8 +29,8 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               <span className="text-lg font-black tracking-tight text-white flex items-center gap-1.5">
                 Math Olympiad <span className="text-[#008DDA] glow-primary">Hub</span>
               </span>
-              <span className="hidden sm:block text-[10px] text-slate-400 font-medium tracking-wide">
-                ศูนย์การแข่งขันและฝึกซ้อมคณิตศาสตร์ภายในโรงเรียน
+              <span className="hidden sm:block text-[10px] text-cyan-300/80 font-bold tracking-wide">
+                โรงเรียนบรรหารแจ่มใสวิทยา 3
               </span>
             </div>
           </div>
@@ -71,6 +71,18 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               <span className="bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-1.5 py-0.2 rounded border border-emerald-500/30">
                 6 เกม
               </span>
+            </button>
+
+            <button
+              onClick={() => setCurrentView('arena')}
+              className={`px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-1.5 transition-all ${
+                currentView === 'arena'
+                  ? 'bg-rose-500/25 text-rose-300 border border-rose-500/40 shadow-lg shadow-rose-500/20 animate-pulse'
+                  : 'text-rose-300/80 hover:text-rose-200 hover:bg-rose-500/10'
+              }`}
+              title="หน้าจอแสดงผลกลางสำหรับเปิดขึ้นจอโปรเจกเตอร์หรือทีวีในงาน"
+            >
+              <Tv className="w-4 h-4 text-rose-400" /> จอแสดงผลกลาง (Arena)
             </button>
 
             <button

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle } from 'lucide-react';
+import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Wifi, Radio, Copy, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
+import { realtimeService } from '../../services/realtimeService';
 
 // Board size 8x8
 // 0: empty
@@ -15,11 +16,16 @@ export default function ThaiCheckersGame() {
   const [board, setBoard] = useState(() => initializeBoard());
   const [turn, setTurn] = useState(1); // 1 = Player 1 (Cyan), -1 = Player 2 (Red/AI)
   const [selectedPos, setSelectedPos] = useState(null); // [r, c]
-  const [validMoves, setValidMoves] = useState([]); // Array of [r, c]
-  const [gameMode, setGameMode] = useState('ai'); // 'ai' or 'pvp'
+  const [validMoves, setValidMoves] = useState([]); // Array of valid targets
+  const [gameMode, setGameMode] = useState('ai'); // 'ai', 'pvp', 'realtime_2p'
   const [winner, setWinner] = useState(null);
   const [capturedByP1, setCapturedByP1] = useState(0);
   const [capturedByP2, setCapturedByP2] = useState(0);
+
+  // Real-time 2-Player Options
+  const [roomId, setRoomId] = useState('M101');
+  const [myPlayerRole, setMyPlayerRole] = useState(1); // 1 for Player 1, -1 for Player 2
+  const [copiedRoom, setCopiedRoom] = useState(false);
 
   function initializeBoard() {
     const b = Array(8).fill(null).map(() => Array(8).fill(0));
@@ -40,14 +46,51 @@ export default function ThaiCheckersGame() {
   }
 
   const resetGame = () => {
-    setBoard(initializeBoard());
+    const initial = initializeBoard();
+    setBoard(initial);
     setTurn(1);
     setSelectedPos(null);
     setValidMoves([]);
     setWinner(null);
     setCapturedByP1(0);
     setCapturedByP2(0);
+
+    if (gameMode === 'realtime_2p') {
+      realtimeService.sendEvent(roomId, 'board_move', {
+        board: initial,
+        turn: 1,
+        capturedByP1: 0,
+        capturedByP2: 0,
+        winner: null,
+        moveText: 'เริ่มกระดานใหม่'
+      });
+    }
   };
+
+  // Real-time listener for 2-device multiplayer
+  useEffect(() => {
+    if (gameMode !== 'realtime_2p') return;
+
+    realtimeService.joinRoom(roomId, myPlayerRole === 1 ? 'player1' : 'player2');
+
+    const unsub = realtimeService.subscribe(roomId, 'board_move', (payload) => {
+      if (payload.board) setBoard(payload.board);
+      if (payload.turn !== undefined) setTurn(payload.turn);
+      if (payload.capturedByP1 !== undefined) setCapturedByP1(payload.capturedByP1);
+      if (payload.capturedByP2 !== undefined) setCapturedByP2(payload.capturedByP2);
+      if (payload.winner) {
+        setWinner(payload.winner);
+        if (payload.winner === myPlayerRole) {
+          confetti({ particleCount: 70, spread: 70 });
+        }
+      }
+    });
+
+    return () => {
+      unsub();
+      realtimeService.leaveRoom(roomId);
+    };
+  }, [gameMode, roomId, myPlayerRole]);
 
   // Get valid moves for a piece at [r, c] according to Thai Checkers rules
   const getMovesForPiece = (b, r, c, player) => {
@@ -94,32 +137,26 @@ export default function ThaiCheckersGame() {
 
       kingDirections.forEach(([dr, dc]) => {
         let step = 1;
-        let enemyFound = null; // { r, c }
+        let enemyFound = null;
 
         while (true) {
           const currR = r + dr * step;
           const currC = c + dc * step;
 
-          // ออกนอกกระดาน
           if (currR < 0 || currR >= 8 || currC < 0 || currC >= 8) break;
 
           const cellPiece = b[currR][currC];
 
           if (!enemyFound) {
             if (cellPiece === 0) {
-              // เดินปกติทางไกล (Long-range move)
               moves.push({ toR: currR, toC: currC, isJump: false });
             } else if (Math.sign(cellPiece) === player) {
-              // เจอหมากฝั่งเดียวกัน ขวางทาง
               break;
             } else {
-              // เจอหมากฝ่ายตรงข้ามตัวแรกในแนวทแยงนี้
               enemyFound = { r: currR, c: currC };
             }
           } else {
-            // หลังจากเจอหมากฝ่ายตรงข้าม ตรวจสอบช่องว่างด้านหลังเพื่อกินยาวทางไกล (Long-range capture)
             if (cellPiece === 0) {
-              // สามารถเลือกลงช่องว่างด้านหลังตัวกินได้ทุกช่อง
               moves.push({
                 toR: currR,
                 toC: currC,
@@ -128,7 +165,6 @@ export default function ThaiCheckersGame() {
                 midC: enemyFound.c
               });
             } else {
-              // มีหมากตัวอื่นขวางด้านหลัง
               break;
             }
           }
@@ -145,6 +181,7 @@ export default function ThaiCheckersGame() {
   const handleSquareClick = (r, c) => {
     if (winner) return;
     if (gameMode === 'ai' && turn === -1) return; // Wait for AI
+    if (gameMode === 'realtime_2p' && turn !== myPlayerRole) return; // Wait for opponent's turn in 2-device match
 
     const piece = board[r][c];
 
@@ -174,10 +211,18 @@ export default function ThaiCheckersGame() {
     newBoard[fromR][fromC] = 0;
 
     let wasJump = move.isJump;
+    let nextP1Cap = capturedByP1;
+    let nextP2Cap = capturedByP2;
+
     if (wasJump) {
       newBoard[move.midR][move.midC] = 0;
-      if (turn === 1) setCapturedByP1(c => c + 1);
-      else setCapturedByP2(c => c + 1);
+      if (turn === 1) {
+        nextP1Cap = capturedByP1 + 1;
+        setCapturedByP1(nextP1Cap);
+      } else {
+        nextP2Cap = capturedByP2 + 1;
+        setCapturedByP2(nextP2Cap);
+      }
     }
 
     // Promotion to King (Row 0 for player 1, Row 7 for player -1)
@@ -202,23 +247,34 @@ export default function ThaiCheckersGame() {
       }
     }
 
-    if (!hasEnemyPieces) {
-      setWinner(turn);
-      if (turn === 1) {
+    const currentWinner = !hasEnemyPieces ? turn : null;
+    if (currentWinner) {
+      setWinner(currentWinner);
+      if (currentWinner === 1) {
         confetti({ particleCount: 70, spread: 70 });
         recordGameResult('checkers', 500, { mode: gameMode, winner: 'player1' });
       }
-      return;
     }
 
     setTurn(nextTurn);
+
+    // Sync across devices in Real-time 2-Player mode
+    if (gameMode === 'realtime_2p') {
+      realtimeService.sendEvent(roomId, 'board_move', {
+        board: newBoard,
+        turn: nextTurn,
+        capturedByP1: nextP1Cap,
+        capturedByP2: nextP2Cap,
+        winner: currentWinner,
+        moveText: `${turn === 1 ? 'ฝ่ายฟ้า' : 'ฝ่ายแดง'} เดินจาก (${fromR},${fromC}) → (${move.toR},${move.toC})`
+      });
+    }
   };
 
   // AI Turn Execution
   useEffect(() => {
     if (gameMode === 'ai' && turn === -1 && !winner) {
       const timer = setTimeout(() => {
-        // Collect all possible moves for AI
         const allMoves = [];
         for (let r = 0; r < 8; r++) {
           for (let c = 0; c < 8; c++) {
@@ -235,7 +291,6 @@ export default function ThaiCheckersGame() {
           return;
         }
 
-        // Prioritize jump captures
         const jumpMoves = allMoves.filter(m => m.move.isJump);
         const chosen = jumpMoves.length > 0
           ? jumpMoves[Math.floor(Math.random() * jumpMoves.length)]
@@ -248,6 +303,12 @@ export default function ThaiCheckersGame() {
     }
   }, [turn, gameMode, board, winner]);
 
+  const copyRoomCode = () => {
+    navigator.clipboard?.writeText(roomId);
+    setCopiedRoom(true);
+    setTimeout(() => setCopiedRoom(false), 2000);
+  };
+
   return (
     <div className="bg-[#1E3E62]/40 rounded-3xl p-6 sm:p-8 border border-white/10 backdrop-blur-md animate-fade-in">
       {/* Header */}
@@ -255,36 +316,47 @@ export default function ThaiCheckersGame() {
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
-              มินิเกมที่ 3
+              มินิเกมที่ 3 • โรงเรียนบรรหารแจ่มใสวิทยา 3
             </span>
-            <span className="text-xs text-slate-400">ฝึกตรรกะและกลยุทธ์ 24 ชม.</span>
+            <span className="text-xs text-slate-400">ฝึกตรรกะและประลอง 2 เครื่องสด</span>
           </div>
           <h2 className="text-2xl font-black text-white mt-1">
-            หมากฮอสไทย (Thai Checkers) <span className="text-[#008DDA] glow-primary">Classic Tactics</span>
+            หมากฮอสไทย (Thai Checkers) <span className="text-[#008DDA] glow-primary">Real-time Arena</span>
           </h2>
           <p className="text-xs text-slate-300 mt-0.5">
-            กติกาหมากฮอสไทยแท้ เดินทแยง กินเบี้ย และเข้าฮอสเพื่อเปิดทางเดินกว้าง
+            กติกาหมากฮอสไทยแท้: เบี้ยเดินหน้าอย่างเดียว / ฮอสเดินและกินยาวทางไกล ซิงค์ 2 เครื่องแบบเรียลไทม์
           </p>
         </div>
 
         {/* Mode Selector */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setGameMode('ai'); resetGame(); }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
               gameMode === 'ai' ? 'bg-[#008DDA] text-white shadow' : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
-            <Bot className="w-4 h-4" /> สู้กับบอท (vs AI)
+            <Bot className="w-4 h-4" /> บอท (AI)
           </button>
+
           <button
             onClick={() => { setGameMode('pvp'); resetGame(); }}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
               gameMode === 'pvp' ? 'bg-amber-500 text-slate-950 shadow' : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
-            <Users className="w-4 h-4" /> สองคน (2 Players)
+            <Users className="w-4 h-4" /> 2 คนในเครื่องนี้
           </button>
+
+          <button
+            onClick={() => { setGameMode('realtime_2p'); resetGame(); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+              gameMode === 'realtime_2p' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-cyan-400/50' : 'bg-white/5 text-cyan-300 hover:text-white'
+            }`}
+          >
+            <Wifi className="w-4 h-4 animate-pulse" /> แข่ง 2 เครื่องสด (Online)
+          </button>
+
           <button
             onClick={resetGame}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
@@ -295,12 +367,62 @@ export default function ThaiCheckersGame() {
         </div>
       </div>
 
+      {/* Real-time 2-Device Match Room Bar */}
+      {gameMode === 'realtime_2p' && (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 via-[#0B192C] to-indigo-950/80 border border-cyan-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                โหมดเชื่อมต่อ 2 เครื่องแบบเรียลไทม์ (ไม่ต้องกดรีเฟรช)
+              </div>
+              <div className="text-[11px] text-slate-300 mt-0.5">
+                รหัสห้องแข่ง: <strong className="text-cyan-300 font-mono">{roomId}</strong> (แชร์รหัสนี้ให้อีกเครื่องเพื่อเข้าห้องเดียวกัน)
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-[#0B192C] rounded-xl border border-white/10 p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setMyPlayerRole(1)}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  myPlayerRole === 1 ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                เครื่องนี้คือ: ฝ่ายฟ้า (P1)
+              </button>
+              <button
+                type="button"
+                onClick={() => setMyPlayerRole(-1)}
+                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                  myPlayerRole === -1 ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                เครื่องนี้คือ: ฝ่ายแดง (P2)
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={copyRoomCode}
+              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
+            >
+              {copiedRoom ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedRoom ? 'คัดลอกแล้ว!' : 'คัดลอกรหัส'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Board & Status */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
         {/* 8x8 Board Canvas */}
-        <div className="lg:col-span-2 flex flex-col items-center">
-          <div className="p-3 sm:p-4 bg-[#0B192C]/90 rounded-2xl border-4 border-[#1E3E62] shadow-2xl box-glow">
-            <div className="grid grid-cols-8 gap-0 border-2 border-slate-700 rounded-lg overflow-hidden">
+        <div className="lg:col-span-2 flex justify-center">
+          <div className="p-3 sm:p-4 bg-[#0B192C] rounded-3xl border-4 border-[#1E3E62] shadow-2xl">
+            <div className="grid grid-cols-8 gap-0 border-2 border-slate-700 rounded-xl overflow-hidden shadow-inner">
               {board.map((row, r) =>
                 row.map((cell, c) => {
                   const isDark = (r + c) % 2 === 1;
@@ -308,60 +430,79 @@ export default function ThaiCheckersGame() {
                   const isValidTarget = validMoves.some(m => m.toR === r && m.toC === c);
 
                   return (
-                    <div
+                    <button
                       key={`${r}-${c}`}
+                      disabled={!isDark}
                       onClick={() => handleSquareClick(r, c)}
-                      className={`w-9 h-9 sm:w-14 sm:h-14 flex items-center justify-center cursor-pointer transition-all relative select-none ${
-                        isDark ? 'bg-[#1E3E62]/70' : 'bg-[#0B192C]/40'
-                      } ${isSelected ? 'ring-4 ring-[#008DDA] z-10' : ''}`}
+                      className={`w-10 h-10 sm:w-14 sm:h-14 md:w-16 md:h-16 flex items-center justify-center relative select-none transition-all ${
+                        isDark
+                          ? 'bg-[#1E3E62]/80 hover:bg-[#1E3E62] active:scale-95'
+                          : 'bg-[#0B192C]/40 cursor-default'
+                      } ${isSelected ? 'ring-4 ring-cyan-400 z-10' : ''}`}
                     >
-                      {/* Target Indicator */}
+                      {/* Highlight Valid Move Dots */}
                       {isValidTarget && (
-                        <div className="w-4 h-4 rounded-full bg-emerald-400/80 animate-ping absolute" />
+                        <div className="w-4 h-4 rounded-full bg-emerald-400/90 ring-4 ring-emerald-300/40 animate-pulse z-20" />
                       )}
 
-                      {/* Piece */}
+                      {/* Pieces */}
                       {cell !== 0 && (
                         <div
-                          className={`w-7 h-7 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-black text-xs sm:text-base shadow-lg transition-transform active:scale-90 ${
+                          className={`w-8 h-8 sm:w-11 sm:h-11 rounded-full flex items-center justify-center font-black text-xs sm:text-lg shadow-xl transition-transform ${
                             cell > 0
-                              ? 'bg-gradient-to-br from-cyan-400 to-[#008DDA] text-white border-2 border-white/70 ring-2 ring-cyan-500/50'
-                              : 'bg-gradient-to-br from-amber-400 to-red-600 text-white border-2 border-white/70 ring-2 ring-red-500/50'
-                          }`}
+                              ? 'bg-gradient-to-br from-cyan-400 to-blue-600 text-white border-2 border-white shadow-cyan-500/50'
+                              : 'bg-gradient-to-br from-amber-400 to-red-600 text-white border-2 border-white shadow-red-500/50'
+                          } ${isSelected ? 'scale-110 shadow-2xl' : ''}`}
                         >
                           {Math.abs(cell) === 2 ? '👑' : ''}
                         </div>
                       )}
-                    </div>
+                    </button>
                   );
                 })
               )}
             </div>
           </div>
-
-          {winner && (
-            <div className="mt-4 p-3 rounded-xl bg-emerald-950/80 border border-emerald-500 text-emerald-200 text-sm font-bold flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-emerald-400" />
-              {winner === 1 ? '🎉 ผู้เล่น 1 (สีฟ้า) เป็นฝ่ายชนะ!' : '🤖 บอท / ผู้เล่น 2 เป็นฝ่ายชนะ!'}
-            </div>
-          )}
         </div>
 
-        {/* Game Stats & Sidebar */}
-        <div className="space-y-6">
-          {/* Turn indicator */}
-          <div className="bg-[#0B192C]/80 p-5 rounded-2xl border border-white/10 text-center">
-            <div className="text-xs uppercase font-semibold text-slate-400 mb-2">ตานี้ของฝ่าย</div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10">
-              <span className={`w-3 h-3 rounded-full ${turn === 1 ? 'bg-[#008DDA]' : 'bg-red-500'} animate-pulse`} />
-              <span className="font-bold text-base text-white">
-                {turn === 1 ? 'ผู้เล่น 1 (ฝ่ายฟ้า)' : gameMode === 'ai' ? 'บอทคอมพิวเตอร์ (ฝ่ายแดง)' : 'ผู้เล่น 2 (ฝ่ายแดง)'}
+        {/* Game Stats & Instructions */}
+        <div className="space-y-4">
+          {/* Turn Indicator */}
+          <div className="bg-[#0B192C] p-5 rounded-2xl border border-white/10 shadow-xl">
+            <div className="text-xs uppercase font-bold text-slate-400 tracking-wider">สถานะตาเดินสด</div>
+            <div className="flex items-center gap-3 mt-2">
+              <div
+                className={`w-4 h-4 rounded-full ${
+                  turn === 1 ? 'bg-cyan-400 shadow-lg shadow-cyan-400/50' : 'bg-red-400 shadow-lg shadow-red-400/50'
+                } animate-pulse`}
+              />
+              <span className="text-base font-black text-white">
+                {turn === 1 ? 'ฝ่ายฟ้า (Player 1)' : gameMode === 'ai' ? 'ฝ่ายแดง (บอท AI)' : 'ฝ่ายแดง (Player 2)'}
               </span>
             </div>
+
+            {gameMode === 'realtime_2p' && (
+              <div className={`mt-2 p-2 rounded-lg text-xs font-semibold ${
+                turn === myPlayerRole ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
+              }`}>
+                {turn === myPlayerRole ? '🎯 ถึงตาเดินของคุณแล้ว!' : '⏳ รอฝ่ายตรงข้ามเดินหมาก...'}
+              </div>
+            )}
           </div>
 
-          {/* Captured Pieces Count */}
-          <div className="grid grid-cols-2 gap-3 bg-[#0B192C]/80 p-4 rounded-2xl border border-white/10">
+          {/* Winner Notification */}
+          {winner && (
+            <div className="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-sm font-bold flex items-center gap-3 animate-bounce">
+              <Trophy className="w-6 h-6 text-yellow-400" />
+              <div>
+                <div>ผู้ชนะ: {winner === 1 ? 'ฝ่ายฟ้า (Player 1) ชนะ!' : 'ฝ่ายแดง (Player 2) ชนะ!'}</div>
+                <div className="text-xs text-emerald-300/80 font-normal">ชนะอย่างสมบูรณ์แบบตามกติกาหมากฮอสไทย</div>
+              </div>
+            </div>
+          )}
+
+          {/* Captured Pieces Counter */}
+          <div className="grid grid-cols-2 gap-3 bg-[#0B192C] p-4 rounded-2xl border border-white/10">
             <div className="text-center">
               <div className="text-[10px] uppercase font-bold text-slate-400">หมากที่ฝ่ายฟ้ากินได้</div>
               <div className="text-xl font-black text-[#008DDA] mt-1">{capturedByP1} เบี้ย</div>
@@ -375,10 +516,10 @@ export default function ThaiCheckersGame() {
           {/* Rules Reminder */}
           <div className="bg-[#0B192C]/50 p-4 rounded-xl border border-white/5 text-xs text-slate-400 space-y-1.5">
             <div className="font-bold text-slate-200 flex items-center gap-1">
-              <span>👑</span> กติกาหมากฮอสไทย:
+              <span>👑</span> กติกาหมากฮอสไทยแท้:
             </div>
             <div>• <strong className="text-cyan-300">ตัวหมากปกติ (เบี้ย):</strong> เดินหน้าได้อย่างเดียว 1 ช่อง <strong>ห้ามเดินถอยหลัง และห้ามกินถอยหลัง</strong></div>
-            <div>• <strong className="text-amber-300">ตัวฮอส (King):</strong> เมื่อเข้าฮอสแล้ว สามารถ<strong>เดินยาวทางไกล</strong>ตามแนวทแยง 4 ทิศทาง และสามารถ<strong>กินยาวทางไกล</strong>ข้ามหมากฝ่ายตรงข้ามได้ทั้งหน้าและหลัง</div>
+            <div>• <strong className="text-amber-300">ตัวฮอส (King):</strong> เมื่อเข้าฮอสแล้ว สามารถ<strong>เดินยาวทางไกล</strong>ตามแนวทแยง 4 ทิศทาง และสามารถ<strong>กินยาวทางไกล</strong>ข้ามหมากฝ่ายตรงข้ามได้ทั้งหน้าและหลังแบบ Real-time</div>
           </div>
         </div>
       </div>

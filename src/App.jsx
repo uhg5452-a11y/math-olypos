@@ -16,6 +16,7 @@ import MyRegistrations from './components/student/MyRegistrations';
 import GamesHub from './components/games/GamesHub';
 import LeaderboardView from './components/leaderboard/LeaderboardView';
 import AdminDashboard from './components/admin/AdminDashboard';
+import CentralArenaDisplay from './components/arena/CentralArenaDisplay';
 
 function MainContent() {
   const [currentView, setCurrentView] = useState('tournaments');
@@ -65,6 +66,10 @@ function MainContent() {
 
         {currentView === 'leaderboard' && (
           <LeaderboardView />
+        )}
+
+        {currentView === 'arena' && (
+          <CentralArenaDisplay />
         )}
 
         {currentView === 'my-registrations' && (

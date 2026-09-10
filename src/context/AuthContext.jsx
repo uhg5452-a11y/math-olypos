@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
       studentId: cleanId,
       privatePin: cleanPin,
       name: studentData.name.trim(),
-      school: studentData.school.trim() || 'โรงเรียนตัวแทนศูนย์คณิตศาสตร์',
+      school: studentData.school.trim() || 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
       grade: studentData.grade.trim() || 'มัธยมศึกษา',
       role: 'student',
       elo: 1500,

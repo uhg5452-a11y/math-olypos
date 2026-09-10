@@ -1,4 +1,5 @@
 // Mock Users: Student Accounts & 2 Designated Admin Whitelist Accounts
+// โรงเรียนบรรหารแจ่มใสวิทยา 3
 
 export const ADMIN_WHITELIST = [
   'uhg5452@gmail.com',
@@ -13,6 +14,7 @@ export const ADMIN_ACCOUNTS = [
     name: 'น.ส. สุจารี สุขีวงศ์',
     role: 'admin',
     avatar: '👩‍🏫',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     badge: 'Head Admin & Creator'
   },
   {
@@ -22,18 +24,19 @@ export const ADMIN_ACCOUNTS = [
     name: 'นายปองคุณ กาฬภักดี',
     role: 'admin',
     avatar: '👨‍🏫',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     badge: 'Tournament Director & Creator'
   }
 ];
 
-// Student Database supporting all school students with individual unique Private PINs
+// Student Database supporting all students in โรงเรียนบรรหารแจ่มใสวิทยา 3 with individual unique Private PINs
 export const INITIAL_STUDENTS = [
   {
     id: 'student_1',
     studentId: 'STU-2026-001',
     privatePin: '1478', // Unique private PIN for student 1
     name: 'วรเมธ ปัญญาวงศ์',
-    school: 'โรงเรียนเตรียมอุดมศึกษา',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     grade: 'มัธยมศึกษาปีที่ 5/1',
     role: 'student',
     elo: 1850,
@@ -56,7 +59,7 @@ export const INITIAL_STUDENTS = [
     studentId: 'STU-2026-002',
     privatePin: '2580', // Unique private PIN for student 2
     name: 'กานต์รวี เจริญศิลป์',
-    school: 'โรงเรียนมหิดลวิทยานุสรณ์',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     grade: 'มัธยมศึกษาปีที่ 6/2',
     role: 'student',
     elo: 1920,
@@ -79,7 +82,7 @@ export const INITIAL_STUDENTS = [
     studentId: 'STU-2026-003',
     privatePin: '3691', // Unique private PIN for student 3
     name: 'ภูริณัฐ ธนกิจโกศล',
-    school: 'โรงเรียนสวนกุหลาบวิทยาลัย',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     grade: 'มัธยมศึกษาปีที่ 4/5',
     role: 'student',
     elo: 1710,
@@ -102,7 +105,7 @@ export const INITIAL_STUDENTS = [
     studentId: 'STU-2026-004',
     privatePin: '4826', // Unique private PIN for student 4
     name: 'ชลิตา วัฒนกุล',
-    school: 'โรงเรียนสามเสนวิทยาลัย',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     grade: 'มัธยมศึกษาปีที่ 5/3',
     role: 'student',
     elo: 1680,
@@ -125,7 +128,7 @@ export const INITIAL_STUDENTS = [
     studentId: 'STU-2026-005',
     privatePin: '5937', // Unique private PIN for student 5
     name: 'ณภัทร สิริโชค',
-    school: 'โรงเรียนบดินทรเดชา (สิงห์ สิงหเสนี)',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
     grade: 'มัธยมศึกษาปีที่ 3/1',
     role: 'student',
     elo: 1620,

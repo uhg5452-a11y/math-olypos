@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Eye, Users, MessageSquare, Send, Heart, Flame, Sparkles, X, Clock, Trophy, Award, Shield } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../../context/AuthContext';
+import { realtimeService } from '../../services/realtimeService';
 
 export default function LiveSpectatorModal({ isOpen, onClose, match, tournament }) {
   const { currentUser } = useAuth();
@@ -24,6 +25,42 @@ export default function LiveSpectatorModal({ isOpen, onClose, match, tournament 
 
   const chatEndRef = useRef(null);
 
+  // Subscribe to Realtime Match Room for Spectators
+  useEffect(() => {
+    if (!isOpen || !match?.matchId) return;
+
+    realtimeService.joinRoom(match.matchId, 'spectator', {
+      name: currentUser?.name || 'นักเรียนบรรหาร 3'
+    });
+
+    // Real-time board move update
+    const unsubMove = realtimeService.subscribe(match.matchId, 'board_move', (payload) => {
+      if (payload.moveText) {
+        setLiveMoves(prev => [payload.moveText, ...prev.slice(0, 4)]);
+      }
+    });
+
+    // Real-time cheer message update
+    const unsubCheer = realtimeService.subscribe(match.matchId, 'cheer_message', (payload) => {
+      if (payload.text) {
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        setChatMessages(prev => [...prev, {
+          id: Date.now(),
+          sender: payload.sender || 'เพื่อนนักเรียน',
+          text: payload.text,
+          time: timeStr
+        }]);
+      }
+    });
+
+    return () => {
+      unsubMove();
+      unsubCheer();
+      realtimeService.leaveRoom(match.matchId);
+    };
+  }, [isOpen, match?.matchId, currentUser]);
+
   // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -40,14 +77,14 @@ export default function LiveSpectatorModal({ isOpen, onClose, match, tournament 
 
   if (!isOpen || !match) return null;
 
-  const player1 = match.player1 || { name: 'ผู้เข้าแข่งขัน 1', school: 'โรงเรียนเตรียมอุดมฯ', score: 385 };
-  const player2 = match.player2 || { name: 'ผู้เข้าแข่งขัน 2', school: 'โรงเรียนมหิดลวิทย์ฯ', score: 412 };
+  const player1 = match.player1 || { name: 'ผู้เข้าแข่งขัน 1', school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3', score: 385 };
+  const player2 = match.player2 || { name: 'ผู้เข้าแข่งขัน 2', school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3', score: 412 };
 
   const handleSendChat = (e) => {
     e.preventDefault();
     if (!newChatText.trim()) return;
 
-    const senderName = currentUser ? currentUser.name : 'นักเรียนผู้เข้าชม';
+    const senderName = currentUser ? currentUser.name : 'นักเรียน บ.จ.ว.๓';
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -59,11 +96,18 @@ export default function LiveSpectatorModal({ isOpen, onClose, match, tournament 
     };
 
     setChatMessages(prev => [...prev, newMsg]);
+
+    // Broadcast cheer to other spectators and Central Arena Display
+    realtimeService.sendEvent(match.matchId, 'cheer_message', {
+      sender: senderName,
+      text: newChatText.trim()
+    });
+
     setNewChatText('');
   };
 
   const handleQuickCheer = (text, reactionKey) => {
-    const senderName = currentUser ? currentUser.name : 'นักเรียนผู้เข้าชม';
+    const senderName = currentUser ? currentUser.name : 'นักเรียน บ.จ.ว.๓';
     const now = new Date();
     const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
@@ -73,6 +117,12 @@ export default function LiveSpectatorModal({ isOpen, onClose, match, tournament 
       text: text,
       time: timeStr
     }]);
+
+    // Broadcast quick cheer
+    realtimeService.sendEvent(match.matchId, 'cheer_message', {
+      sender: senderName,
+      text: text
+    });
 
     if (reactionKey) {
       setReactionCounts(prev => ({

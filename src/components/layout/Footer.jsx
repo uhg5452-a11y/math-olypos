@@ -12,7 +12,9 @@ export default function Footer() {
             Math Olympiad Hub © 2026
           </span>
           <span className="text-slate-600">|</span>
-          <span>ระบบศูนย์รวมการแข่งขันและฝึกซ้อมคณิตศาสตร์โอลิมปิก</span>
+          <span className="text-cyan-300/80 font-medium">โรงเรียนบรรหารแจ่มใสวิทยา 3</span>
+          <span className="text-slate-600">|</span>
+          <span>ศูนย์การแข่งขันและฝึกซ้อมคณิตศาสตร์</span>
         </div>
         <div className="flex items-center gap-4 text-[11px] text-slate-500">
           <span>React + Tailwind CSS + Firebase/Node.js Architecture</span>
