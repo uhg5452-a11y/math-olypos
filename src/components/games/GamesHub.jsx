@@ -24,7 +24,7 @@ export default function GamesHub() {
       id: 'sudoku',
       title: 'ซูโดกุ (Sudoku)',
       subtitle: 'Olympiad Number Grid',
-      description: 'ปริศนาตัวเลข 9x9 ระดับแข่งขัน เลือกระดับความยากง่าย-ปานกลาง พร้อมโหมดโน้ตดินสอและตัวช่วยคำใบ้',
+      description: 'ปริศนาตัวเลข 9x9 ระดับแข่งขัน เลือกระดับความยากง่าย-ปานกลาง พร้อมโหมดโน้ตดินสอและจับเวลาแข่งขัน',
       icon: '🔢',
       badge: 'Deduction Puzzle',
       component: <SudokuGame />
@@ -50,8 +50,8 @@ export default function GamesHub() {
     {
       id: 'make-24',
       title: 'เกม 24 (Make 24)',
-      subtitle: 'Math Puzzle & Solver',
-      description: 'ผสมตัวเลข 4 ตัวด้วย +, -, ×, ÷ และวงเล็บ ให้ได้ 24 พร้อมระบบ AI Solver แนะนำวิธีคิดหากติดขัด',
+      subtitle: 'Speed Challenge',
+      description: 'ผสมตัวเลข 4 ตัวด้วย +, -, ×, ÷ และวงเล็บ ให้ได้ 24 โหมดจับเวลา 60 วินาที ตอบผิดเปลี่ยนโจทย์ใหม่ทันที',
       icon: '🧮',
       badge: 'Combinatorics',
       component: <Make24Game />

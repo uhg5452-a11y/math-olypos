@@ -26,6 +26,40 @@ export default function ThaiCheckersGame() {
   const [roomId, setRoomId] = useState('M101');
   const [myPlayerRole, setMyPlayerRole] = useState(1); // 1 for Player 1, -1 for Player 2
   const [copiedRoom, setCopiedRoom] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutes countdown
+
+  // Check URL query parameters for auto-joining match room (Requirement 2)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomParam = params.get('room');
+    const roleParam = params.get('role');
+    if (roomParam) {
+      setRoomId(roomParam);
+      setGameMode('realtime_2p');
+      if (roleParam === 'p2' || roleParam === '-1') {
+        setMyPlayerRole(-1);
+      } else if (roleParam === 'p1' || roleParam === '1') {
+        setMyPlayerRole(1);
+      }
+    }
+  }, []);
+
+  // Countdown timer (Requirement 7)
+  useEffect(() => {
+    if (winner) return;
+    const interval = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setWinner(turn === 1 ? -1 : 1); // Timeout loss
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [turn, winner]);
 
   function initializeBoard() {
     const b = Array(8).fill(null).map(() => Array(8).fill(0));
@@ -367,9 +401,9 @@ export default function ThaiCheckersGame() {
         </div>
       </div>
 
-      {/* Real-time 2-Device Match Room Bar */}
+      {/* Real-time 2-Device Match Room Bar (Requirement 2) */}
       {gameMode === 'realtime_2p' && (
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 via-[#0B192C] to-indigo-950/80 border border-cyan-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 via-[#0B192C] to-indigo-950/80 border border-cyan-500/40 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
             <div>
@@ -377,13 +411,27 @@ export default function ThaiCheckersGame() {
                 <Radio className="w-3.5 h-3.5 text-cyan-400" />
                 โหมดเชื่อมต่อ 2 เครื่องแบบเรียลไทม์ (ไม่ต้องกดรีเฟรช)
               </div>
-              <div className="text-[11px] text-slate-300 mt-0.5">
-                รหัสห้องแข่ง: <strong className="text-cyan-300 font-mono">{roomId}</strong> (แชร์รหัสนี้ให้อีกเครื่องเพื่อเข้าห้องเดียวกัน)
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-[11px] text-slate-300">รหัสห้องแข่ง:</span>
+                <input
+                  type="text"
+                  value={roomId}
+                  onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+                  className="px-2 py-0.5 rounded bg-black/50 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold uppercase w-28"
+                  placeholder="เช่น M101"
+                />
+                <button
+                  type="button"
+                  onClick={() => setRoomId('M' + Math.floor(100 + Math.random() * 900))}
+                  className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-slate-300 hover:text-white"
+                >
+                  สุ่ม PIN
+                </button>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center bg-[#0B192C] rounded-xl border border-white/10 p-1 text-xs">
               <button
                 type="button"
@@ -392,7 +440,7 @@ export default function ThaiCheckersGame() {
                   myPlayerRole === 1 ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                เครื่องนี้คือ: ฝ่ายฟ้า (P1)
+                เครื่องนี้: ฝ่ายฟ้า (P1)
               </button>
               <button
                 type="button"
@@ -401,7 +449,7 @@ export default function ThaiCheckersGame() {
                   myPlayerRole === -1 ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                เครื่องนี้คือ: ฝ่ายแดง (P2)
+                เครื่องนี้: ฝ่ายแดง (P2)
               </button>
             </div>
 
@@ -409,9 +457,25 @@ export default function ThaiCheckersGame() {
               type="button"
               onClick={copyRoomCode}
               className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
+              title="คัดลอกรหัสห้อง"
             >
               {copiedRoom ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              {copiedRoom ? 'คัดลอกแล้ว!' : 'คัดลอกรหัส'}
+              {copiedRoom ? 'คัดลอกรหัสแล้ว!' : 'คัดลอกรหัสห้อง'}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const link = `${window.location.origin}${window.location.pathname}?room=${roomId}&role=p2&game=checkers`;
+                navigator.clipboard?.writeText(link);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2000);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-400/40 text-xs font-bold text-cyan-200 flex items-center gap-1.5 shadow"
+              title="คัดลอกลิงก์ส่งให้อีกเครื่องเข้าห้องได้ทันที"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Wifi className="w-3.5 h-3.5 text-cyan-300" />}
+              {copiedLink ? 'คัดลอกลิงก์แล้ว!' : '🔗 คัดลอกลิงก์ตรง (Direct Link)'}
             </button>
           </div>
         </div>
@@ -488,6 +552,16 @@ export default function ThaiCheckersGame() {
                 {turn === myPlayerRole ? '🎯 ถึงตาเดินของคุณแล้ว!' : '⏳ รอฝ่ายตรงข้ามเดินหมาก...'}
               </div>
             )}
+
+            {/* Countdown Timer Display (Requirement 7) */}
+            <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+              <span className="text-slate-400">⏱️ เวลาแข่งขัน:</span>
+              <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-md ${
+                timeLeft < 60 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse' : 'bg-white/5 text-amber-300 border border-white/10'
+              }`}>
+                {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
+              </span>
+            </div>
           </div>
 
           {/* Winner Notification */}

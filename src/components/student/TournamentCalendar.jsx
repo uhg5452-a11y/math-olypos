@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
-import { Calendar as CalendarIcon, Clock, Bell, Trophy, CheckCircle2, ChevronRight, AlertCircle, Sparkles, Eye } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, CheckCircle2, ChevronRight, Sparkles, Eye } from 'lucide-react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../context/AuthContext';
 import LiveSpectatorModal from '../spectator/LiveSpectatorModal';
 
 export default function TournamentCalendar() {
-  const { tournaments, trigger15MinAlert } = useTournament();
+  const { tournaments } = useTournament();
   const { currentUser } = useAuth();
-  const [selectedDay, setSelectedDay] = useState('all');
   const [spectatorMatch, setSpectatorMatch] = useState(null);
   const [spectatorTournament, setSpectatorTournament] = useState(null);
 
@@ -19,27 +18,17 @@ export default function TournamentCalendar() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#1E3E62]/40 p-6 rounded-3xl border border-white/10 backdrop-blur-md">
+      <div className="bg-[#1E3E62]/40 p-6 rounded-3xl border border-white/10 backdrop-blur-md">
         <div>
           <div className="flex items-center gap-2 text-[#008DDA] text-xs font-bold uppercase tracking-wider mb-1">
             <CalendarIcon className="w-4 h-4" /> ตารางการแข่งขันและไทม์ไลน์รอบแข่ง
           </div>
           <h2 className="text-2xl font-black text-white">
-            ปฏิทินการแข่งขัน <span className="text-[#008DDA] glow-primary">Olympiad Schedule</span>
+            ปฏิทินการแข่งขัน <span className="text-[#008DDA] glow-primary">School Competition Schedule</span>
           </h2>
           <p className="text-slate-300 text-xs mt-1">
-            ติดตามเวลาเริ่มแข่งขันของแต่ละรอบ พร้อมระบบแจ้งเตือนล่วงหน้า 15 นาทีก่อนการแข่งขัน
+            ติดตามตารางเวลาเริ่มแข่งขันของแต่ละระดับชั้นในโรงเรียนบรรหารแจ่มใสวิทยา 3
           </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => trigger15MinAlert(tournaments[0]?.id)}
-            className="px-4 py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all flex items-center gap-2 shadow-lg active:scale-95"
-          >
-            <Bell className="w-4 h-4 text-amber-400 animate-bounce" />
-            จำลองแจ้งเตือน 15 นาที
-          </button>
         </div>
       </div>
 
@@ -50,6 +39,8 @@ export default function TournamentCalendar() {
           const isRegistered = currentUser && tourney.registeredStudents?.includes(currentUser.studentId);
           const timeFormatted = startDate.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
           const dateFormatted = startDate.toLocaleDateString('th-TH', { weekday: 'short', day: 'numeric', month: 'short' });
+          const isLiveNow = tourney.status === 'live' && tourney.matches?.some(m => m.status === 'live');
+          const liveMatch = tourney.matches?.find(m => m.status === 'live');
 
           return (
             <div key={tourney.id} className="relative group">
@@ -73,7 +64,7 @@ export default function TournamentCalendar() {
                   <div className="flex items-center gap-2">
                     {tourney.status === 'live' ? (
                       <span className="text-xs font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center gap-1.5 animate-pulse">
-                        <span className="w-2 h-2 rounded-full bg-rose-500" /> แข่งขันอยู่ (Live)
+                        <span className="w-2 h-2 rounded-full bg-rose-500" /> กำลังแข่งขันสด (Live)
                       </span>
                     ) : tourney.isRegistrationOpen ? (
                       <span className="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
@@ -106,30 +97,21 @@ export default function TournamentCalendar() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    {tourney.matches && tourney.matches.length > 0 && (
+                  {/* Watch Live Button: Only appears when match is actively live */}
+                  {isLiveNow && liveMatch && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
                       <button
                         type="button"
                         onClick={() => {
-                          const matchToWatch = tourney.matches.find(m => m.status === 'live') || tourney.matches[0];
-                          setSpectatorMatch(matchToWatch);
+                          setSpectatorMatch(liveMatch);
                           setSpectatorTournament(tourney);
                         }}
-                        className="px-3 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5"
+                        className="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/50 text-rose-300 text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-rose-500/10 active:scale-95"
                       >
-                        <Eye className="w-3.5 h-3.5 text-rose-400 animate-pulse" /> เข้าชมสด
+                        <Eye className="w-4 h-4 text-rose-400 animate-pulse" /> รับชมสด (Live)
                       </button>
-                    )}
-
-                    <button
-                      onClick={() => trigger15MinAlert(tourney.id)}
-                      className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-amber-500/20 border border-white/10 hover:border-amber-500/40 text-slate-300 hover:text-amber-300 text-xs font-semibold transition-all flex items-center gap-1.5"
-                      title="ทดสอบแจ้งเตือนก่อนแข่ง 15 นาที"
-                    >
-                      <Bell className="w-3.5 h-3.5 text-amber-400" />
-                      ตั้งปลุก 15 น.
-                    </button>
-                  </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

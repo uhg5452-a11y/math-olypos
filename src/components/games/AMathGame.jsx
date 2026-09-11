@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { RefreshCw, CheckCircle2, RotateCcw, Award, Sparkles, HelpCircle, Trophy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { RefreshCw, CheckCircle2, RotateCcw, Award, Sparkles, HelpCircle, Trophy, Clock } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 
@@ -41,10 +41,24 @@ export default function AMathGame() {
   const [rack, setRack] = useState(['8', '×', '2', '=', '16', '+', '4', '12']);
   const [selectedTileIdx, setSelectedTileIdx] = useState(null);
   const [score, setScore] = useState(15);
+  const [timeLeft, setTimeLeft] = useState(180); // 3-minute competition countdown
+  const [isTimeUp, setIsTimeUp] = useState(false);
   const [equationMessage, setEquationMessage] = useState('ยินดีต้อนรับสู่ A-Math! เลือกเบี้ยด้านล่างแล้วคลิกวางลงบนกระดาน');
   const [history, setHistory] = useState([
     { eq: '9 + 6 = 15', pts: 15, valid: true }
   ]);
+
+  // Countdown timer effect
+  useEffect(() => {
+    if (isTimeUp) return;
+    if (timeLeft <= 0) {
+      setIsTimeUp(true);
+      setEquationMessage('⏱️ หมดเวลาแข่งขัน 3 นาทีสำหรับเกม A-Math!');
+      return;
+    }
+    const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, isTimeUp]);
 
   // Handle clicking a cell on the board
   const handleCellClick = (r, c) => {
@@ -127,7 +141,15 @@ export default function AMathGame() {
     setBoard(b);
     setScore(15);
     setRack(['8', '×', '2', '=', '16', '+', '4', '12']);
+    setTimeLeft(180);
+    setIsTimeUp(false);
     setEquationMessage('รีเซ็ตกระดานเรียบร้อยแล้ว');
+  };
+
+  const formatTimer = (secs) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
   return (
@@ -139,7 +161,7 @@ export default function AMathGame() {
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
               มินิเกมที่ 1
             </span>
-            <span className="text-xs text-slate-400">ฝึกซ้อม 24 ชั่วโมง</span>
+            <span className="text-xs text-slate-400">โหมดแข่งขันจับเวลา 3 นาที</span>
           </div>
           <h2 className="text-2xl font-black text-white mt-1">
             เอแมท (A-Math) <span className="text-[#008DDA] glow-primary">สมการอักษรไขว้</span>
@@ -150,6 +172,22 @@ export default function AMathGame() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Countdown timer badge */}
+          <div className={`px-4 py-2 rounded-2xl border text-center transition-all ${
+            timeLeft <= 30 && !isTimeUp
+              ? 'bg-rose-950/80 border-rose-500 animate-pulse'
+              : 'bg-[#0B192C] border-white/10'
+          }`}>
+            <div className="text-[10px] uppercase font-bold text-slate-400 flex items-center justify-center gap-1">
+              <Clock className="w-3 h-3 text-[#008DDA]" /> เวลาแข่งขัน
+            </div>
+            <div className={`text-xl font-black font-mono ${
+              timeLeft <= 30 && !isTimeUp ? 'text-rose-400' : 'text-white'
+            }`}>
+              {formatTimer(timeLeft)}
+            </div>
+          </div>
+
           <div className="bg-[#0B192C] px-4 py-2 rounded-2xl border border-white/10 text-center">
             <div className="text-[10px] uppercase font-bold text-slate-400">คะแนนสะสม</div>
             <div className="text-xl font-black text-amber-400 flex items-center justify-center gap-1">

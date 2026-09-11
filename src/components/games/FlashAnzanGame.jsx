@@ -16,6 +16,8 @@ export default function FlashAnzanGame() {
   const [userAnswer, setUserAnswer] = useState('');
   const [score, setScore] = useState(0);
   const [correctTotal, setCorrectTotal] = useState(0);
+  const [answerTimeLeft, setAnswerTimeLeft] = useState(15);
+  const [isWrong, setIsWrong] = useState(false);
 
   // Start sequence
   const startAnzan = () => {
@@ -32,8 +34,10 @@ export default function FlashAnzanGame() {
     setNumbersList(list);
     setCorrectTotal(sum);
     setUserAnswer('');
+    setIsWrong(false);
     setGameState('countdown');
     setCountdown(3);
+    setAnswerTimeLeft(15);
   };
 
   // Countdown effect
@@ -61,6 +65,7 @@ export default function FlashAnzanGame() {
         } else {
           clearInterval(interval);
           setCurrentNumber('');
+          setAnswerTimeLeft(15);
           setGameState('answering');
         }
       }, speed);
@@ -69,16 +74,41 @@ export default function FlashAnzanGame() {
     }
   }, [gameState, numbersList, speed]);
 
+  // Answering countdown timer effect (15 seconds limit)
+  useEffect(() => {
+    if (gameState !== 'answering') return;
+    if (answerTimeLeft <= 0) {
+      // Time up: immediately mark wrong and randomize new question
+      setIsWrong(true);
+      setGameState('result');
+      setTimeout(() => startAnzan(), 1000);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setAnswerTimeLeft(t => t - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameState, answerTimeLeft]);
+
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     const ans = parseInt(userAnswer.trim(), 10);
     setGameState('result');
 
     if (ans === correctTotal) {
+      setIsWrong(false);
       const points = count * (digits * 10) + Math.round((1500 - speed) / 10);
       setScore(s => s + points);
       confetti({ particleCount: 60, spread: 70 });
       recordGameResult('flash-anzan', points, { count, digits, speed });
+    } else {
+      // Wrong answer: do not reveal solution, immediately randomize next question
+      setIsWrong(true);
+      setTimeout(() => {
+        startAnzan();
+      }, 1000);
     }
   };
 
@@ -189,6 +219,9 @@ export default function FlashAnzanGame() {
 
           {gameState === 'answering' && (
             <div className="w-full px-8 text-center space-y-4">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
+                <Clock className="w-3.5 h-3.5" /> เวลาตอบที่เหลือ: {answerTimeLeft} วิ
+              </div>
               <h3 className="text-lg font-bold text-white">ผลรวมของตัวเลขทั้งหมดคือเท่าใด?</h3>
               <form onSubmit={handleSubmit} className="flex items-center gap-2 max-w-xs mx-auto">
                 <input
@@ -211,7 +244,7 @@ export default function FlashAnzanGame() {
 
           {gameState === 'result' && (
             <div className="text-center space-y-3 px-4">
-              {parseInt(userAnswer, 10) === correctTotal ? (
+              {!isWrong ? (
                 <div>
                   <div className="text-emerald-400 text-3xl font-black flex items-center justify-center gap-2">
                     <CheckCircle2 className="w-8 h-8" /> ถูกต้องสมบูรณ์!
@@ -223,10 +256,10 @@ export default function FlashAnzanGame() {
               ) : (
                 <div>
                   <div className="text-rose-400 text-2xl font-black">
-                    ยังไม่ถูกต้อง!
+                    ❌ ยังไม่ถูกต้อง!
                   </div>
                   <div className="text-sm text-slate-300 mt-2">
-                    คุณตอบ: <span className="text-rose-300 font-bold">{userAnswer || 'ไม่ได้ตอบ'}</span> • เฉลย: <span className="text-emerald-400 font-bold text-lg">{correctTotal}</span>
+                    ระบบกำลังสุ่มเปลี่ยนชุดตัวเลขข้อใหม่ทันที...
                   </div>
                 </div>
               )}

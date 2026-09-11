@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ADMIN_ACCOUNTS, ADMIN_WHITELIST, INITIAL_STUDENTS } from '../data/mockUsers';
 import { storageService } from '../services/storageService';
+import { realtimeService } from '../services/realtimeService';
 
 const AuthContext = createContext();
 
@@ -17,6 +18,23 @@ export function AuthProvider({ children }) {
     storageService.saveStudents(students);
   }, [students]);
 
+  // Real-time student sync across tabs/devices (Requirement 3)
+  useEffect(() => {
+    const unsub = realtimeService.subscribe('system_sync', 'student_updated', (payload) => {
+      if (payload?.student) {
+        setStudents(prev => {
+          const exists = prev.some(s => s.id === payload.student.id || s.studentId === payload.student.studentId);
+          if (exists) {
+            return prev.map(s => s.studentId === payload.student.studentId ? payload.student : s);
+          }
+          return [payload.student, ...prev];
+        });
+      }
+    });
+
+    return () => unsub();
+  }, []);
+
   // Login for Students with Student ID + Individual Private PIN
   const loginStudent = (studentId, privatePin) => {
     setAuthError(null);
@@ -31,13 +49,13 @@ export function AuthProvider({ children }) {
       setCurrentUser(student);
       return { success: true, user: student };
     } else {
-      const errorMsg = 'รหัสนักเรียนหรือรหัสเฉพาะส่วนตัว (Private PIN) ไม่ถูกต้อง';
+      const errorMsg = 'เลขประจำตัวนักเรียนหรือรหัสผ่านเฉพาะตัว (Private PIN) ไม่ถูกต้อง';
       setAuthError(errorMsg);
       return { success: false, error: errorMsg };
     }
   };
 
-  // Register New School Student with their own unique Private PIN
+  // Register New School Student with their own unique Private PIN (Requirement 3: Live Sync)
   const registerStudent = (studentData) => {
     setAuthError(null);
     const cleanId = studentData.studentId.trim().toUpperCase();
@@ -46,7 +64,7 @@ export function AuthProvider({ children }) {
     // Check if Student ID already exists
     const existing = students.find(s => s.studentId.toUpperCase() === cleanId);
     if (existing) {
-      const errorMsg = `รหัสนักเรียน ${cleanId} มีอยู่ในระบบแล้ว กรุณาเข้าสู่ระบบด้วย Private PIN ของคุณ`;
+      const errorMsg = `เลขประจำตัวนักเรียน ${cleanId} มีอยู่ในระบบแล้ว กรุณาเข้าสู่ระบบด้วย Private PIN ของคุณ`;
       setAuthError(errorMsg);
       return { success: false, error: errorMsg };
     }
@@ -56,7 +74,7 @@ export function AuthProvider({ children }) {
       studentId: cleanId,
       privatePin: cleanPin,
       name: studentData.name.trim(),
-      school: studentData.school.trim() || 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
+      school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
       grade: studentData.grade.trim() || 'มัธยมศึกษา',
       role: 'student',
       elo: 1500,
@@ -78,6 +96,10 @@ export function AuthProvider({ children }) {
     const updatedList = [newStudent, ...students];
     setStudents(updatedList);
     setCurrentUser(newStudent);
+
+    // Broadcast update across devices & windows in Real-time
+    realtimeService.sendEvent('system_sync', 'student_updated', { student: newStudent });
+
     return { success: true, user: newStudent };
   };
 
@@ -86,7 +108,7 @@ export function AuthProvider({ children }) {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check strict whitelist
+    // Check strict whitelist (Requirement 5)
     if (!ADMIN_WHITELIST.includes(cleanEmail)) {
       const errorMsg = 'การเข้าถึงถูกปฏิเสธ: อีเมลนี้ไม่ได้รับอนุญาตในระบบ Whitelist แอดมิน (จำกัดเฉพาะ 2 บัญชีผู้สร้างเท่านั้น)';
       setAuthError(errorMsg);
@@ -107,18 +129,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Switch demo user easily for testing
-  const switchDemoUser = (type, index = 0) => {
-    if (type === 'admin') {
-      const admin = ADMIN_ACCOUNTS[index] || ADMIN_ACCOUNTS[0];
-      setCurrentUser(admin);
-    } else {
-      const student = students[index] || students[0];
-      setCurrentUser(student);
-    }
-    setAuthError(null);
-  };
-
   const logout = () => {
     setCurrentUser(null);
     setAuthError(null);
@@ -130,8 +140,10 @@ export function AuthProvider({ children }) {
     if (currentUser && currentUser.id === updatedStudent.id) {
       setCurrentUser(updatedStudent);
     }
+    realtimeService.sendEvent('system_sync', 'student_updated', { student: updatedStudent });
   };
 
+  // Strict RBAC: only creator emails can ever be admin
   const isAdmin = currentUser?.role === 'admin' && ADMIN_WHITELIST.includes(currentUser?.email?.toLowerCase());
   const isStudent = currentUser?.role === 'student';
 
@@ -145,7 +157,6 @@ export function AuthProvider({ children }) {
         registerStudent,
         loginAdmin,
         logout,
-        switchDemoUser,
         updateStudentData,
         authError,
         setAuthError,

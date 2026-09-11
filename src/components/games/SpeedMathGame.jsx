@@ -86,7 +86,7 @@ export default function SpeedMathGame() {
       setFeedback({ type: 'correct', text: `+${gained} (คอมโบ x${multiplier})` });
     } else {
       setStreak(0);
-      setFeedback({ type: 'wrong', text: `ผิด! เฉลย: ${currentProblem.answer}` });
+      setFeedback({ type: 'wrong', text: 'คำตอบไม่ถูกต้อง! สุ่มเปลี่ยนโจทย์ใหม่ทันที' });
     }
 
     setUserAnswer('');

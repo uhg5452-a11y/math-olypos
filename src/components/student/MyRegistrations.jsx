@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trophy, Calendar, Clock, ArrowRight, XCircle, CheckCircle2, User, Award, Flame } from 'lucide-react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../context/AuthContext';
+import CancelRegistrationModal from './CancelRegistrationModal';
 
 export default function MyRegistrations({ onNavigateToTournaments }) {
   const { tournaments, unregisterTournament } = useTournament();
   const { currentUser, isStudent } = useAuth();
+  const [cancelingTourney, setCancelingTourney] = useState(null);
 
   if (!currentUser || !isStudent) {
     return (
@@ -117,11 +119,8 @@ export default function MyRegistrations({ onNavigateToTournaments }) {
 
                   {tourney.isRegistrationOpen && (
                     <button
-                      onClick={() => {
-                        if (window.confirm(`คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการสมัครรายการ "${tourney.title}"?`)) {
-                          unregisterTournament(tourney.id);
-                        }
-                      }}
+                      type="button"
+                      onClick={() => setCancelingTourney(tourney)}
                       className="px-3 py-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-rose-300 text-xs font-semibold transition-all flex items-center gap-1"
                     >
                       <XCircle className="w-3.5 h-3.5" /> ยกเลิก
@@ -143,6 +142,16 @@ export default function MyRegistrations({ onNavigateToTournaments }) {
               ดูรอบการแข่งขันที่เปิดรับสมัคร
             </button>
           </div>
+        )}
+
+        {/* Cancel Registration Confirmation Modal */}
+        {cancelingTourney && (
+          <CancelRegistrationModal
+            isOpen={Boolean(cancelingTourney)}
+            onClose={() => setCancelingTourney(null)}
+            onConfirm={unregisterTournament}
+            tournament={cancelingTourney}
+          />
         )}
       </div>
     </div>

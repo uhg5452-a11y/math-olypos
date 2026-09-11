@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Lightbulb, CheckCircle2, Trophy, Clock, AlertTriangle, Edit3, Sparkles } from 'lucide-react';
+import { RotateCcw, CheckCircle2, Trophy, Clock, AlertTriangle, Edit3, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 
@@ -63,18 +63,23 @@ export default function SudokuGame() {
   const [pencilMode, setPencilMode] = useState(false);
   const [selectedCell, setSelectedCell] = useState([0, 0]);
   const [mistakes, setMistakes] = useState(0);
-  const [timer, setTimer] = useState(0);
+  // Countdown Timer Mode: 5-minute competition limit
+  const [timer, setTimer] = useState(300);
+  const [isTimeUp, setIsTimeUp] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [hintsLeft, setHintsLeft] = useState(3);
 
   const currentPreset = SUDOKU_PRESETS[difficulty];
 
-  // Timer
+  // Countdown Timer
   useEffect(() => {
-    if (isCompleted) return;
-    const interval = setInterval(() => setTimer(t => t + 1), 1000);
+    if (isCompleted || isTimeUp) return;
+    if (timer <= 0) {
+      setIsTimeUp(true);
+      return;
+    }
+    const interval = setInterval(() => setTimer(t => t - 1), 1000);
     return () => clearInterval(interval);
-  }, [isCompleted]);
+  }, [isCompleted, isTimeUp, timer]);
 
   const loadDifficulty = (diff) => {
     setDifficulty(diff);
@@ -82,9 +87,9 @@ export default function SudokuGame() {
     setNotes(Array(9).fill(null).map(() => Array(9).fill([])));
     setSelectedCell([0, 0]);
     setMistakes(0);
-    setTimer(0);
+    setTimer(300);
+    setIsTimeUp(false);
     setIsCompleted(false);
-    setHintsLeft(3);
   };
 
   const handleCellSelect = (r, c) => {
@@ -144,16 +149,8 @@ export default function SudokuGame() {
     }
   };
 
-  const handleHint = () => {
-    if (hintsLeft <= 0 || isCompleted) return;
-    const [r, c] = selectedCell;
-    if (currentPreset.puzzle[r][c] !== 0) return;
-
-    const solVal = currentPreset.solution[r][c];
-    const newGrid = grid.map(row => [...row]);
-    newGrid[r][c] = solVal;
-    setGrid(newGrid);
-    setHintsLeft(h => h - 1);
+  const handleReset = () => {
+    loadDifficulty(difficulty);
   };
 
   const formatTimer = (secs) => {
@@ -249,7 +246,21 @@ export default function SudokuGame() {
 
           {isCompleted && (
             <div className="mt-4 p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500 text-emerald-200 text-sm font-bold flex items-center gap-2 animate-bounce">
-              <Sparkles className="w-5 h-5 text-emerald-400" /> ยินดีด้วย! คุณแก้ปริศนาซูโดกุสำเร็จในเวลา {formatTimer(timer)}!
+              <Sparkles className="w-5 h-5 text-emerald-400" /> ยินดีด้วย! คุณแก้ปริศนาซูโดกุสำเร็จในเวลาที่กำหนด!
+            </div>
+          )}
+
+          {isTimeUp && !isCompleted && (
+            <div className="mt-4 p-4 rounded-2xl bg-rose-950/80 border border-rose-500 text-rose-200 text-sm font-bold flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-rose-400" /> หมดเวลา 5 นาทีสำหรับการแข่งขัน!
+              </div>
+              <button
+                onClick={handleReset}
+                className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all"
+              >
+                เริ่มใหม่
+              </button>
             </div>
           )}
         </div>
@@ -261,8 +272,10 @@ export default function SudokuGame() {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-[#008DDA]" />
               <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">เวลา</div>
-                <div className="text-base font-black font-mono text-white">{formatTimer(timer)}</div>
+                <div className="text-[10px] text-slate-400 uppercase font-semibold">เวลานับถอยหลัง</div>
+                <div className={`text-base font-black font-mono ${timer <= 60 ? 'text-rose-400 animate-pulse' : 'text-white'}`}>
+                  {formatTimer(timer)}
+                </div>
               </div>
             </div>
 
@@ -281,8 +294,9 @@ export default function SudokuGame() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
                   key={num}
+                  disabled={isCompleted || isTimeUp}
                   onClick={() => handleNumberInput(num)}
-                  className="py-3 rounded-xl bg-[#1E3E62] hover:bg-[#008DDA] text-white font-black text-lg transition-all active:scale-95 shadow"
+                  className="py-3 rounded-xl bg-[#1E3E62] hover:bg-[#008DDA] text-white font-black text-lg transition-all active:scale-95 shadow disabled:opacity-40"
                 >
                   {num}
                 </button>
@@ -292,14 +306,16 @@ export default function SudokuGame() {
             <div className="grid grid-cols-3 gap-2">
               <button
                 onClick={() => handleNumberInput(0)}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all"
+                disabled={isCompleted || isTimeUp}
+                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all disabled:opacity-40"
               >
                 ลบ (Erase)
               </button>
 
               <button
                 onClick={() => setPencilMode(!pencilMode)}
-                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 ${
+                disabled={isCompleted || isTimeUp}
+                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 disabled:opacity-40 ${
                   pencilMode ? 'bg-amber-500 text-slate-900' : 'bg-white/5 hover:bg-white/10 text-slate-300'
                 }`}
               >
@@ -307,11 +323,10 @@ export default function SudokuGame() {
               </button>
 
               <button
-                onClick={handleHint}
-                disabled={hintsLeft <= 0}
-                className="py-2.5 rounded-xl bg-[#008DDA]/20 hover:bg-[#008DDA]/30 border border-[#008DDA]/40 text-[#008DDA] text-xs font-bold transition-all flex items-center justify-center gap-1 disabled:opacity-40"
+                onClick={handleReset}
+                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-1"
               >
-                <Lightbulb className="w-3.5 h-3.5" /> คำใบ้ ({hintsLeft})
+                <RotateCcw className="w-3.5 h-3.5 text-[#008DDA]" /> รีเซ็ตกระดาน
               </button>
             </div>
           </div>

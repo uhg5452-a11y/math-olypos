@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Mail, Shield, AlertCircle, ArrowRight, CheckCircle, UserPlus, KeyRound } from 'lucide-react';
+import { User, Lock, Mail, Shield, AlertCircle, ArrowRight, UserPlus, KeyRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../common/Modal';
 
@@ -13,7 +13,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   // New Student Registration State
   const [regStudentId, setRegStudentId] = useState('');
   const [regName, setRegName] = useState('');
-  const [regSchool, setRegSchool] = useState('โรงเรียนบรรหารแจ่มใสวิทยา 3');
   const [regGrade, setRegGrade] = useState('มัธยมศึกษาปีที่ 4/1');
   const [regPin, setRegPin] = useState('');
   const [regConfirmPin, setRegConfirmPin] = useState('');
@@ -26,11 +25,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     loginStudent,
     registerStudent,
     loginAdmin,
-    switchDemoUser,
     authError,
-    setAuthError,
-    adminAccounts,
-    students
+    setAuthError
   } = useAuth();
 
   const handleStudentSubmit = (e) => {
@@ -45,7 +41,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
     if (regPin !== regConfirmPin) {
-      setAuthError('รหัสเฉพาะส่วนตัว (Private PIN) ทั้งสองช่องไม่ตรงกัน');
+      setAuthError('รหัสผ่านเฉพาะตัว (Private PIN) ทั้งสองช่องไม่ตรงกัน');
       return;
     }
     if (regPin.length < 4) {
@@ -56,7 +52,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     const res = registerStudent({
       studentId: regStudentId,
       name: regName,
-      school: regSchool,
+      school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
       grade: regGrade,
       privatePin: regPin
     });
@@ -76,20 +72,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     }
   };
 
-  const handleQuickStudentLogin = (idx) => {
-    switchDemoUser('student', idx);
-    onClose();
-    if (onLoginSuccess) onLoginSuccess('student');
-  };
-
-  const handleQuickAdminLogin = (idx) => {
-    switchDemoUser('admin', idx);
-    onClose();
-    if (onLoginSuccess) onLoginSuccess('admin');
-  };
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="เข้าสู่ระบบ Math Olympiad Hub" maxWidth="max-w-xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="เข้าสู่ระบบ Math Olympiad Hub" maxWidth="max-w-lg">
       {/* 3-Tab Switcher */}
       <div className="grid grid-cols-3 gap-1.5 bg-[#0B192C]/80 p-1.5 rounded-xl border border-white/10 mb-6">
         <button
@@ -101,7 +85,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <User className="w-3.5 h-3.5" /> นักเรียน (เข้าสู่ระบบ)
+          <User className="w-3.5 h-3.5" /> นักเรียน
         </button>
 
         <button
@@ -113,7 +97,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <UserPlus className="w-3.5 h-3.5" /> นักเรียนใหม่ (ตั้ง PIN)
+          <UserPlus className="w-3.5 h-3.5" /> นักเรียนใหม่
         </button>
 
         <button
@@ -125,7 +109,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <Shield className="w-3.5 h-3.5" /> แอดมิน (2 ผู้สร้าง)
+          <Shield className="w-3.5 h-3.5" /> แอดมิน (Whitelist)
         </button>
       </div>
 
@@ -142,9 +126,9 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <div className="p-3 rounded-xl bg-[#008DDA]/10 border border-[#008DDA]/30 text-cyan-200 text-xs mb-4 flex items-start gap-2">
             <KeyRound className="w-4 h-4 text-[#008DDA] mt-0.5 flex-shrink-0" />
             <div>
-              <span className="font-bold">ระบบรหัสเฉพาะส่วนตัว (Private PIN):</span>
+              <span className="font-bold">ระบบยืนยันตัวตนนักเรียน โรงเรียนบรรหารแจ่มใสวิทยา 3:</span>
               <p className="text-[11px] text-cyan-300/80 mt-0.5">
-                นักเรียนแต่ละคนในโรงเรียนจะมีรหัสเฉพาะส่วนตัว (Private PIN) ที่ไม่ซ้ำกัน เพื่อความปลอดภัยในการเข้าใช้งาน
+                กรอกเลขประจำตัวนักเรียนและรหัสผ่านเฉพาะตัว (Private PIN) ที่ท่านตั้งไว้เพื่อเข้าใช้งาน
               </p>
             </div>
           </div>
@@ -152,7 +136,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <form onSubmit={handleStudentSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                รหัสประจำตัวนักเรียน (Student ID)
+                เลขประจำตัวนักเรียน (Student ID)
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#008DDA]" />
@@ -162,24 +146,24 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                   placeholder="เช่น STU-2026-001"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm uppercase"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm uppercase font-mono"
                 />
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                รหัสเฉพาะส่วนตัว (Private PIN / Password)
+                รหัสผ่านเฉพาะตัว (Private PIN / Password)
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#008DDA]" />
                 <input
                   type="password"
                   required
-                  placeholder="กรอก Private PIN ประจำตัวของคุณ"
+                  placeholder="กรอกรหัสผ่านเฉพาะตัวของคุณ"
                   value={privatePin}
                   onChange={(e) => setPrivatePin(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm font-mono"
                 />
               </div>
             </div>
@@ -188,30 +172,9 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               type="submit"
               className="w-full py-3 rounded-xl bg-gradient-to-r from-[#008DDA] to-blue-600 text-white font-bold text-sm hover:from-cyan-500 hover:to-blue-500 shadow-lg shadow-blue-500/20 active:scale-[0.99] transition-all flex items-center justify-center gap-2"
             >
-              เข้าสู่ระบบด้วย Private PIN <ArrowRight className="w-4 h-4" />
+              เข้าสู่ระบบ <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Selector for Students */}
-          <div className="mt-6 pt-4 border-t border-white/10">
-            <p className="text-xs text-slate-400 font-medium mb-2 flex items-center gap-1.5">
-              <CheckCircle className="w-3.5 h-3.5 text-[#008DDA]" /> ตัวอย่างข้อมูลนักเรียนในโรงเรียน (พร้อม Private PIN ที่ไม่ซ้ำกัน):
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {students.slice(0, 4).map((s, idx) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => handleQuickStudentLogin(idx)}
-                  className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-[#008DDA]/40 text-left transition-all"
-                >
-                  <div className="text-xs font-bold text-white truncate">{s.name}</div>
-                  <div className="text-[11px] text-[#008DDA] font-mono">{s.studentId}</div>
-                  <div className="text-[10px] text-amber-300/90 font-mono mt-0.5">Private PIN: {s.privatePin}</div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       )}
 
@@ -221,9 +184,9 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs mb-4 flex items-start gap-2">
             <UserPlus className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
             <div>
-              <span className="font-bold">ลงทะเบียนนักเรียนในโรงเรียน (Student Enrollment):</span>
+              <span className="font-bold">ลงทะเบียนนักเรียนใหม่ (โรงเรียนบรรหารแจ่มใสวิทยา 3):</span>
               <p className="text-[11px] text-emerald-300/80 mt-0.5">
-                รองรับการเข้าใช้งานของนักเรียนทุกคนในโรงเรียน บันทึกข้อมูลประจำตัวและตั้ง Private PIN สำหรับใช้งาน
+                บันทึกข้อมูลประจำตัวนักเรียนและตั้งรหัสผ่านเฉพาะตัวเพื่อเข้าใช้งานระบบ
               </p>
             </div>
           </div>
@@ -231,7 +194,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">รหัสประจำตัวนักเรียน (Student ID):</label>
+                <label className="block text-slate-300 font-semibold mb-1">เลขประจำตัวนักเรียน:</label>
                 <input
                   type="text"
                   required
@@ -255,34 +218,21 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">โรงเรียน / สถาบัน:</label>
-                <input
-                  type="text"
-                  required
-                  value={regSchool}
-                  onChange={(e) => setRegSchool(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-semibold mb-1">ระดับชั้น / ห้อง:</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="เช่น ม.4/2"
-                  value={regGrade}
-                  onChange={(e) => setRegGrade(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white"
-                />
-              </div>
+            <div>
+              <label className="block text-slate-300 font-semibold mb-1">ระดับชั้น / ห้อง:</label>
+              <input
+                type="text"
+                required
+                placeholder="เช่น ม.4/1"
+                value={regGrade}
+                onChange={(e) => setRegGrade(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">ตั้งรหัสเฉพาะส่วนตัว (Private PIN):</label>
+                <label className="block text-slate-300 font-semibold mb-1">ตั้งรหัสผ่านเฉพาะตัว (PIN):</label>
                 <input
                   type="password"
                   required
@@ -294,7 +244,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               </div>
 
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">ยืนยัน Private PIN อีกครั้ง:</label>
+                <label className="block text-slate-300 font-semibold mb-1">ยืนยันรหัสผ่านอีกครั้ง:</label>
                 <input
                   type="password"
                   required
@@ -317,16 +267,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
       )}
 
       {tab === 'admin' && (
-        /* Admin Login Form with Whitelist Notice */
+        /* Admin Login Form with Whitelist Notice (No demo shortcuts) */
         <div>
           <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs mb-4 flex items-start gap-2">
             <Shield className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
             <div>
-              <span className="font-bold">ระบบจำกัดสิทธิ์ผู้สร้าง (Admin Whitelist):</span>
+              <span className="font-bold">ระบบจำกัดสิทธิ์ผู้สร้างระบบ (Strict Admin RBAC):</span>
               <p className="text-[11px] text-amber-300/80 mt-0.5">
-                ระบบจำกัดสิทธิ์เข้าใช้งานเฉพาะ 2 บัญชีผู้สร้างที่ระบุไว้ใน Whitelist เท่านั้น ได้แก่: <br />
-                • <code className="text-white font-mono">uhg5452@gmail.com</code> (น.ส. สุจารี สุขีวงศ์)<br />
-                • <code className="text-white font-mono">pongkunkalapukdee@gmail.com</code> (นายปองคุณ กาฬภักดี)
+                จำกัดสิทธิ์เข้าใช้งานเฉพาะ 2 บัญชีผู้สร้างระบบที่กำหนดไว้ใน Whitelist เท่านั้น ระบบจะตรวจสอบสิทธิ์และปฏิเสธบัญชีอื่นทั้งหมด
               </p>
             </div>
           </div>
@@ -334,14 +282,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <form onSubmit={handleAdminSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5">
-                อีเมลแอดมิน (Whitelisted Admin Email)
+                อีเมลแอดมิน (Whitelisted Email)
               </label>
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400" />
                 <input
                   type="email"
                   required
-                  placeholder="เช่น uhg5452@gmail.com"
+                  placeholder="ระบุอีเมลแอดมินที่ได้รับอนุญาต"
                   value={adminEmail}
                   onChange={(e) => setAdminEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-sm"
@@ -373,27 +321,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               เข้าสู่ระบบแอดมิน <Shield className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Selector for the 2 Creator Admins */}
-          <div className="mt-6 pt-4 border-t border-white/10">
-            <p className="text-xs text-slate-400 font-medium mb-2 flex items-center gap-1.5">
-              <Shield className="w-3.5 h-3.5 text-amber-400" /> ทดสอบเข้าสู่ระบบ 2 แอดมินผู้สร้าง (Whitelisted Admins):
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {adminAccounts.map((admin, idx) => (
-                <button
-                  key={admin.id}
-                  type="button"
-                  onClick={() => handleQuickAdminLogin(idx)}
-                  className="p-2.5 rounded-lg bg-amber-950/30 hover:bg-amber-950/60 border border-amber-500/20 hover:border-amber-500/60 text-left transition-all"
-                >
-                  <div className="text-xs font-bold text-amber-200">{admin.name}</div>
-                  <div className="text-[11px] text-slate-300 font-mono">{admin.email}</div>
-                  <div className="text-[10px] text-amber-400/80 mt-0.5">รหัสผ่าน: {admin.password}</div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       )}
     </Modal>

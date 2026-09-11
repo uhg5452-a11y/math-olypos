@@ -22,8 +22,26 @@ export function GameProvider({ children }) {
     localStorage.setItem('math_olympiad_history', JSON.stringify(gameHistory));
   }, [gameHistory]);
 
-  // Record completed practice game session
+  // Anti-exploit: track recent submissions by student and puzzle signature
+  const [recentSubmissions, setRecentSubmissions] = useState({});
+
+  // Record completed practice game session with anti-exploit protection
   const recordGameResult = (gameType, score, details = {}) => {
+    // Generate signature for deduplication
+    const signature = `${gameType}_${score}_${JSON.stringify(details)}`;
+    const now = Date.now();
+    
+    // Prevent duplicate submission within 3 seconds or same puzzle duplication
+    if (recentSubmissions[signature] && (now - recentSubmissions[signature] < 4000)) {
+      console.warn('Anti-exploit: Duplicate game score submission blocked', signature);
+      return null;
+    }
+
+    setRecentSubmissions(prev => ({
+      ...prev,
+      [signature]: now
+    }));
+
     const newEntry = {
       id: 'G-' + Date.now(),
       gameType,
