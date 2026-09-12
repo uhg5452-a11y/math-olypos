@@ -54,14 +54,13 @@ export default function TournamentList({ onOpenLogin }) {
   };
 
   const handleEnterMatch = (tourney) => {
-    const roomId = tourney.id || `MATCH-${tourney.category}`;
     const game = tourney.category || 'a-math';
     const url = new URL(window.location.href);
     url.searchParams.set('game', game);
-    url.searchParams.set('room', roomId);
-    url.searchParams.set('role', 'p1');
+    url.searchParams.delete('room');
+    url.searchParams.delete('role');
     window.history.pushState({}, '', url.toString());
-    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game, room: roomId } }));
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game } }));
   };
 
   return (
@@ -217,7 +216,7 @@ export default function TournamentList({ onOpenLogin }) {
                     onClick={() => handleEnterMatch(tourney)}
                     className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-400/40"
                   >
-                    <Gamepad2 className="w-4 h-4" /> เข้าสู่ห้องแข่งขัน (Join Match)
+                    <Gamepad2 className="w-4 h-4" /> เข้าสู่การแข่งขัน (Enter Match)
                   </button>
                 </div>
               )}

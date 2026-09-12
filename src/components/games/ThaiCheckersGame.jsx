@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Wifi, Radio, Copy, Check, Play } from 'lucide-react';
+import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Play } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
-import { realtimeService } from '../../services/realtimeService';
 import MatchResultModal from '../common/MatchResultModal';
 
 // Board size 8x8
@@ -18,36 +17,16 @@ export default function ThaiCheckersGame() {
   const [turn, setTurn] = useState(1); // 1 = Player 1 (Cyan), -1 = Player 2 (Red/AI)
   const [selectedPos, setSelectedPos] = useState(null); // [r, c]
   const [validMoves, setValidMoves] = useState([]); // Array of valid targets
-  const [gameMode, setGameMode] = useState('ai'); // 'ai', 'pvp', 'realtime_2p'
+  const [gameMode, setGameMode] = useState('pvp'); // 'pvp' (Local 2-Player), 'ai' (Solo vs Bot)
   const [winner, setWinner] = useState(null);
   const [capturedByP1, setCapturedByP1] = useState(0);
   const [capturedByP2, setCapturedByP2] = useState(0);
 
-  // Real-time 2-Player Options
-  const [roomId, setRoomId] = useState('M101');
-  const [myPlayerRole, setMyPlayerRole] = useState(1); // 1 for Player 1, -1 for Player 2
-  const [copiedRoom, setCopiedRoom] = useState(false);
-  const [copiedLink, setCopiedLink] = useState(false);
+  // Local Match Status & Timer (Only ticks when gameStatus === 'in_game')
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes countdown
   const [gameStatus, setGameStatus] = useState('ready'); // 'ready' or 'in_game'
 
-  // Check URL query parameters for auto-joining match room (Requirement 2)
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const roomParam = params.get('room');
-    const roleParam = params.get('role');
-    if (roomParam) {
-      setRoomId(roomParam);
-      setGameMode('realtime_2p');
-      if (roleParam === 'p2' || roleParam === '-1') {
-        setMyPlayerRole(-1);
-      } else if (roleParam === 'p1' || roleParam === '1') {
-        setMyPlayerRole(1);
-      }
-    }
-  }, []);
-
-  // Countdown timer: only ticks when gameStatus === 'in_game' (Requirement 3)
+  // Countdown timer: only ticks when gameStatus === 'in_game'
   useEffect(() => {
     if (gameStatus !== 'in_game' || winner) return;
     const interval = setInterval(() => {
@@ -66,9 +45,6 @@ export default function ThaiCheckersGame() {
   const handleStartGame = () => {
     setGameStatus('in_game');
     setTimeLeft(600);
-    if (gameMode === 'realtime_2p') {
-      realtimeService.sendEvent(roomId, 'game_started', { gameStatus: 'in_game' });
-    }
   };
 
   function initializeBoard() {
@@ -101,56 +77,7 @@ export default function ThaiCheckersGame() {
     setGameStatus('ready');
     setTimeLeft(600);
 
-    if (gameMode === 'realtime_2p') {
-      realtimeService.sendEvent(roomId, 'board_move', {
-        board: initial,
-        turn: 1,
-        capturedByP1: 0,
-        capturedByP2: 0,
-        winner: null,
-        moveText: 'เริ่มกระดานใหม่'
-      });
-    }
   };
-
-  // Real-time listener for 2-device multiplayer
-  useEffect(() => {
-    if (gameMode !== 'realtime_2p') return;
-
-    realtimeService.joinRoom(roomId, myPlayerRole === 1 ? 'player1' : 'player2');
-
-    const unsub = realtimeService.subscribe(roomId, 'board_move', (payload) => {
-      if (payload.board) setBoard(payload.board);
-      if (payload.turn !== undefined) setTurn(payload.turn);
-      if (payload.capturedByP1 !== undefined) setCapturedByP1(payload.capturedByP1);
-      if (payload.capturedByP2 !== undefined) setCapturedByP2(payload.capturedByP2);
-      if (payload.winner) {
-        setWinner(payload.winner);
-        if (payload.winner === myPlayerRole) {
-          confetti({ particleCount: 70, spread: 70 });
-        }
-      }
-    });
-
-    const unsubStart = realtimeService.subscribe(roomId, 'game_started', () => {
-      setGameStatus('in_game');
-      setTimeLeft(600);
-    });
-
-    const unsubControl = realtimeService.subscribe(roomId, 'match_control', (payload) => {
-      if (payload.action === 'cancel') {
-        alert('กรรมการได้ทำการยกเลิกหรือรีเซ็ตห้องแข่งขันนี้');
-        resetGame();
-      }
-    });
-
-    return () => {
-      unsub();
-      unsubStart();
-      unsubControl();
-      realtimeService.leaveRoom(roomId);
-    };
-  }, [gameMode, roomId, myPlayerRole]);
 
   // Get valid moves for a piece at [r, c] according to Thai Checkers rules
   const getMovesForPiece = (b, r, c, player) => {
@@ -317,23 +244,11 @@ export default function ThaiCheckersGame() {
     }
 
     setTurn(nextTurn);
-
-    // Sync across devices in Real-time 2-Player mode
-    if (gameMode === 'realtime_2p') {
-      realtimeService.sendEvent(roomId, 'board_move', {
-        board: newBoard,
-        turn: nextTurn,
-        capturedByP1: nextP1Cap,
-        capturedByP2: nextP2Cap,
-        winner: currentWinner,
-        moveText: `${turn === 1 ? 'ฝ่ายฟ้า' : 'ฝ่ายแดง'} เดินจาก (${fromR},${fromC}) → (${move.toR},${move.toC})`
-      });
-    }
   };
 
   // AI Turn Execution
   useEffect(() => {
-    if (gameMode === 'ai' && turn === -1 && !winner) {
+    if (gameMode === 'ai' && turn === -1 && !winner && gameStatus === 'in_game') {
       const timer = setTimeout(() => {
         const allMoves = [];
         for (let r = 0; r < 8; r++) {
@@ -361,13 +276,7 @@ export default function ThaiCheckersGame() {
 
       return () => clearTimeout(timer);
     }
-  }, [turn, gameMode, board, winner]);
-
-  const copyRoomCode = () => {
-    navigator.clipboard?.writeText(roomId);
-    setCopiedRoom(true);
-    setTimeout(() => setCopiedRoom(false), 2000);
-  };
+  }, [turn, gameMode, board, winner, gameStatus]);
 
   return (
     <div className="bg-[#1E3E62]/40 rounded-3xl p-6 sm:p-8 border border-white/10 backdrop-blur-md animate-fade-in">
@@ -378,132 +287,67 @@ export default function ThaiCheckersGame() {
             <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
               มินิเกมที่ 3 • โรงเรียนบรรหารแจ่มใสวิทยา 3
             </span>
-            <span className="text-xs text-slate-400">ฝึกตรรกะและประลอง 2 เครื่องสด</span>
+            <span className="text-xs text-slate-400">ระบบเล่น 2 คนบนเครื่องเดียวกัน (Local Hotseat)</span>
           </div>
           <h2 className="text-2xl font-black text-white mt-1">
-            หมากฮอสไทย (Thai Checkers) <span className="text-[#008DDA] glow-primary">Real-time Arena</span>
+            หมากฮอสไทย (Thai Checkers) <span className="text-[#008DDA] glow-primary">Same Device</span>
           </h2>
           <p className="text-xs text-slate-300 mt-0.5">
-            กติกาหมากฮอสไทยแท้: เบี้ยเดินหน้าอย่างเดียว / ฮอสเดินและกินยาวทางไกล ซิงค์ 2 เครื่องแบบเรียลไทม์
+            กติกาหมากฮอสไทยแท้: เบี้ยเดินหน้าอย่างเดียว / ฮอสเดินและกินยาวทางไกล ผลัดกันเดินหมากบนหน้าจอเดียวกัน
           </p>
         </div>
 
         {/* Mode Selector */}
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => { setGameMode('ai'); resetGame(); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              gameMode === 'ai' ? 'bg-[#008DDA] text-white shadow' : 'bg-white/5 text-slate-400 hover:text-white'
-            }`}
-          >
-            <Bot className="w-4 h-4" /> บอท (AI)
-          </button>
-
-          <button
             onClick={() => { setGameMode('pvp'); resetGame(); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              gameMode === 'pvp' ? 'bg-amber-500 text-slate-950 shadow' : 'bg-white/5 text-slate-400 hover:text-white'
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+              gameMode === 'pvp' ? 'bg-[#008DDA] text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
-            <Users className="w-4 h-4" /> 2 คนในเครื่องนี้
+            <Users className="w-4 h-4" /> 2 คนบนเครื่องนี้ (Local 2P)
           </button>
 
           <button
-            onClick={() => { setGameMode('realtime_2p'); resetGame(); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              gameMode === 'realtime_2p' ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg ring-2 ring-cyan-400/50' : 'bg-white/5 text-cyan-300 hover:text-white'
+            onClick={() => { setGameMode('ai'); resetGame(); }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+              gameMode === 'ai' ? 'bg-amber-500 text-slate-950 font-black shadow' : 'bg-white/5 text-slate-400 hover:text-white'
             }`}
           >
-            <Wifi className="w-4 h-4 animate-pulse" /> แข่ง 2 เครื่องสด (Online)
+            <Bot className="w-4 h-4" /> เล่นกับบอท (Solo vs Bot)
           </button>
 
           <button
             onClick={resetGame}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10"
-            title="เริ่มเกมใหม่"
+            title="เริ่มกระดานใหม่"
           >
             <RotateCcw className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Real-time 2-Device Match Room Bar (Requirement 2) */}
-      {gameMode === 'realtime_2p' && (
-        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-950/80 via-[#0B192C] to-indigo-950/80 border border-cyan-500/40 shadow-xl flex flex-col lg:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="w-3 h-3 rounded-full bg-emerald-400 animate-ping" />
+      {/* Start Game Alert Banner (Before starting) */}
+      {gameStatus === 'ready' && !winner && (
+        <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-[#0B192C] to-teal-950/80 border border-emerald-500/40 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <span className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Play className="w-5 h-5 fill-current" />
+            </span>
             <div>
-              <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                <Radio className="w-3.5 h-3.5 text-cyan-400" />
-                โหมดเชื่อมต่อ 2 เครื่องแบบเรียลไทม์ (ไม่ต้องกดรีเฟรช)
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[11px] text-slate-300">รหัสห้องแข่ง:</span>
-                <input
-                  type="text"
-                  value={roomId}
-                  onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                  className="px-2 py-0.5 rounded bg-black/50 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-bold uppercase w-28"
-                  placeholder="เช่น M101"
-                />
-                <button
-                  type="button"
-                  onClick={() => setRoomId('M' + Math.floor(100 + Math.random() * 900))}
-                  className="text-[10px] px-2 py-0.5 rounded bg-white/10 text-slate-300 hover:text-white"
-                >
-                  สุ่ม PIN
-                </button>
+              <div className="text-sm font-bold text-white">พร้อมสำหรับการประลองหมากฮอสไทย</div>
+              <div className="text-xs text-slate-300">
+                เวลานับถอยหลัง 10 นาทีจะยังไม่เริ่มเดิน จนกว่าผู้เล่นจะกดปุ่ม "เริ่มเกม (Start Game)"
               </div>
             </div>
           </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center bg-[#0B192C] rounded-xl border border-white/10 p-1 text-xs">
-              <button
-                type="button"
-                onClick={() => setMyPlayerRole(1)}
-                className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                  myPlayerRole === 1 ? 'bg-cyan-500 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                เครื่องนี้: ฝ่ายฟ้า (P1)
-              </button>
-              <button
-                type="button"
-                onClick={() => setMyPlayerRole(-1)}
-                className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                  myPlayerRole === -1 ? 'bg-amber-500 text-slate-950' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                เครื่องนี้: ฝ่ายแดง (P2)
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={copyRoomCode}
-              className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-semibold text-slate-200 flex items-center gap-1.5"
-              title="คัดลอกรหัสห้อง"
-            >
-              {copiedRoom ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-              {copiedRoom ? 'คัดลอกรหัสแล้ว!' : 'คัดลอกรหัสห้อง'}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                const link = `${window.location.origin}${window.location.pathname}?room=${roomId}&role=p2&game=checkers`;
-                navigator.clipboard?.writeText(link);
-                setCopiedLink(true);
-                setTimeout(() => setCopiedLink(false), 2000);
-              }}
-              className="px-3 py-1.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-400/40 text-xs font-bold text-cyan-200 flex items-center gap-1.5 shadow"
-              title="คัดลอกลิงก์ส่งให้อีกเครื่องเข้าห้องได้ทันที"
-            >
-              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Wifi className="w-3.5 h-3.5 text-cyan-300" />}
-              {copiedLink ? 'คัดลอกลิงก์แล้ว!' : '🔗 คัดลอกลิงก์ตรง (Direct Link)'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleStartGame}
+            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 flex items-center gap-2 transition-all active:scale-95 whitespace-nowrap"
+          >
+            <Play className="w-4 h-4 fill-current" /> เริ่มเกม (Start Game)
+          </button>
         </div>
       )}
 
@@ -571,17 +415,28 @@ export default function ThaiCheckersGame() {
               </span>
             </div>
 
-            {gameMode === 'realtime_2p' && (
-              <div className={`mt-2 p-2 rounded-lg text-xs font-semibold ${
-                turn === myPlayerRole ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-400'
-              }`}>
-                {turn === myPlayerRole ? '🎯 ถึงตาเดินของคุณแล้ว!' : '⏳ รอฝ่ายตรงข้ามเดินหมาก...'}
-              </div>
-            )}
+            <div className="mt-2.5 p-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-semibold text-slate-200">
+              {turn === 1 ? (
+                <span className="text-cyan-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  👉 ถึงตาเดินของผู้เล่นที่ 1 (ฝ่ายฟ้า)
+                </span>
+              ) : gameMode === 'ai' ? (
+                <span className="text-amber-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                  🤖 บอทกำลังคำนวณการเดิน...
+                </span>
+              ) : (
+                <span className="text-red-400 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-400 animate-ping" />
+                  👉 ถึงตาเดินของผู้เล่นที่ 2 (ฝ่ายแดง)
+                </span>
+              )}
+            </div>
 
             {/* Countdown Timer Display (Requirement 3: Timer does not start until Start Game is pressed) */}
             <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-              <span className="text-slate-400">⏱️ เวลาแข่งขัน:</span>
+              <span className="text-slate-400">⏱️ เวลาแข่งขัน (10 นาที):</span>
               <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-md ${
                 timeLeft < 60 ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 animate-pulse' : 'bg-white/5 text-amber-300 border border-white/10'
               }`}>
@@ -629,7 +484,7 @@ export default function ThaiCheckersGame() {
               <span>👑</span> กติกาหมากฮอสไทยแท้:
             </div>
             <div>• <strong className="text-cyan-300">ตัวหมากปกติ (เบี้ย):</strong> เดินหน้าได้อย่างเดียว 1 ช่อง <strong>ห้ามเดินถอยหลัง และห้ามกินถอยหลัง</strong></div>
-            <div>• <strong className="text-amber-300">ตัวฮอส (King):</strong> เมื่อเข้าฮอสแล้ว สามารถ<strong>เดินยาวทางไกล</strong>ตามแนวทแยง 4 ทิศทาง และสามารถ<strong>กินยาวทางไกล</strong>ข้ามหมากฝ่ายตรงข้ามได้ทั้งหน้าและหลังแบบ Real-time</div>
+            <div>• <strong className="text-amber-300">ตัวฮอส (King):</strong> เมื่อเข้าฮอสแล้ว สามารถ<strong>เดินยาวทางไกล</strong>ตามแนวทแยง 4 ทิศทาง และสามารถ<strong>กินยาวทางไกล</strong>ข้ามหมากฝ่ายตรงข้ามได้ทั้งหน้าและหลัง</div>
           </div>
         </div>
       </div>
@@ -639,7 +494,7 @@ export default function ThaiCheckersGame() {
         isOpen={winner !== null}
         onClose={() => setWinner(null)}
         onPlayAgain={resetGame}
-        result={winner === myPlayerRole ? 'win' : 'loss'}
+        result={winner === 1 ? 'win' : 'loss'}
         winnerName={winner === 1 ? 'ฝ่ายฟ้า (Player 1)' : 'ฝ่ายแดง (Player 2 / Bot)'}
         p1Name="ฝ่ายฟ้า (Player 1)"
         p2Name="ฝ่ายแดง (Player 2 / Bot)"

@@ -10,14 +10,7 @@ import FlashAnzanGame from './FlashAnzanGame';
 export default function GamesHub() {
   const [activeGame, setActiveGame] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const g = params.get('game');
-    const r = params.get('room');
-    if (g) return g;
-    if (r) {
-      if (r.toUpperCase().startsWith('AM')) return 'a-math';
-      return 'checkers';
-    }
-    return null;
+    return params.get('game') || null;
   });
 
   useEffect(() => {

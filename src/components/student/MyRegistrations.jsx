@@ -10,14 +10,13 @@ export default function MyRegistrations({ onNavigateToTournaments }) {
   const [cancelingTourney, setCancelingTourney] = useState(null);
 
   const handleEnterMatch = (tourney) => {
-    const roomId = tourney.id || `MATCH-${tourney.category}`;
     const game = tourney.category || 'a-math';
     const url = new URL(window.location.href);
     url.searchParams.set('game', game);
-    url.searchParams.set('room', roomId);
-    url.searchParams.set('role', 'p1');
+    url.searchParams.delete('room');
+    url.searchParams.delete('role');
     window.history.pushState({}, '', url.toString());
-    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game, room: roomId } }));
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game } }));
   };
 
   if (!currentUser || !isStudent) {
@@ -129,7 +128,7 @@ export default function MyRegistrations({ onNavigateToTournaments }) {
                     onClick={() => handleEnterMatch(tourney)}
                     className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-500/20 flex items-center gap-1.5 active:scale-95 transition-all border border-emerald-400/40"
                   >
-                    <Gamepad2 className="w-3.5 h-3.5" /> เข้าสู่ห้องแข่งขัน
+                    <Gamepad2 className="w-3.5 h-3.5" /> เข้าสู่การแข่งขัน (Enter Match)
                   </button>
 
                   <span className="flex items-center gap-1 text-xs font-bold text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">

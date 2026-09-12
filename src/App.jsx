@@ -24,11 +24,12 @@ function MainContent() {
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { currentUser, isAdmin, isTeacher, liveAnnouncement, setLiveAnnouncement } = useAuth();
 
-  // Check URL parameters for Direct Room Link (Requirement 2)
+  // Check URL parameters for Direct Game Navigation
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const gameParam = params.get('game');
     const roomParam = params.get('room');
-    if (roomParam) {
+    if (gameParam || roomParam) {
       setCurrentView('practice');
     }
 
