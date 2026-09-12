@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Wifi, Radio, Copy, Check } from 'lucide-react';
+import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Wifi, Radio, Copy, Check, Play } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 import { realtimeService } from '../../services/realtimeService';
@@ -29,6 +29,7 @@ export default function ThaiCheckersGame() {
   const [copiedRoom, setCopiedRoom] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes countdown
+  const [gameStatus, setGameStatus] = useState('ready'); // 'ready' or 'in_game'
 
   // Check URL query parameters for auto-joining match room (Requirement 2)
   useEffect(() => {
@@ -46,9 +47,9 @@ export default function ThaiCheckersGame() {
     }
   }, []);
 
-  // Countdown timer (Requirement 7)
+  // Countdown timer: only ticks when gameStatus === 'in_game' (Requirement 3)
   useEffect(() => {
-    if (winner) return;
+    if (gameStatus !== 'in_game' || winner) return;
     const interval = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
@@ -60,7 +61,15 @@ export default function ThaiCheckersGame() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [turn, winner]);
+  }, [gameStatus, turn, winner]);
+
+  const handleStartGame = () => {
+    setGameStatus('in_game');
+    setTimeLeft(600);
+    if (gameMode === 'realtime_2p') {
+      realtimeService.sendEvent(roomId, 'game_started', { gameStatus: 'in_game' });
+    }
+  };
 
   function initializeBoard() {
     const b = Array(8).fill(null).map(() => Array(8).fill(0));
@@ -89,6 +98,8 @@ export default function ThaiCheckersGame() {
     setWinner(null);
     setCapturedByP1(0);
     setCapturedByP2(0);
+    setGameStatus('ready');
+    setTimeLeft(600);
 
     if (gameMode === 'realtime_2p') {
       realtimeService.sendEvent(roomId, 'board_move', {
@@ -121,6 +132,11 @@ export default function ThaiCheckersGame() {
       }
     });
 
+    const unsubStart = realtimeService.subscribe(roomId, 'game_started', () => {
+      setGameStatus('in_game');
+      setTimeLeft(600);
+    });
+
     const unsubControl = realtimeService.subscribe(roomId, 'match_control', (payload) => {
       if (payload.action === 'cancel') {
         alert('กรรมการได้ทำการยกเลิกหรือรีเซ็ตห้องแข่งขันนี้');
@@ -130,6 +146,7 @@ export default function ThaiCheckersGame() {
 
     return () => {
       unsub();
+      unsubStart();
       unsubControl();
       realtimeService.leaveRoom(roomId);
     };
@@ -222,7 +239,7 @@ export default function ThaiCheckersGame() {
 
   // Handle cell click
   const handleSquareClick = (r, c) => {
-    if (winner) return;
+    if (gameStatus !== 'in_game' || winner) return;
     if (gameMode === 'ai' && turn === -1) return; // Wait for AI
     if (gameMode === 'realtime_2p' && turn !== myPlayerRole) return; // Wait for opponent's turn in 2-device match
 
@@ -562,7 +579,7 @@ export default function ThaiCheckersGame() {
               </div>
             )}
 
-            {/* Countdown Timer Display (Requirement 7) */}
+            {/* Countdown Timer Display (Requirement 3: Timer does not start until Start Game is pressed) */}
             <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
               <span className="text-slate-400">⏱️ เวลาแข่งขัน:</span>
               <span className={`font-mono font-bold text-sm px-2.5 py-0.5 rounded-md ${
@@ -571,6 +588,16 @@ export default function ThaiCheckersGame() {
                 {Math.floor(timeLeft / 60).toString().padStart(2, '0')}:{(timeLeft % 60).toString().padStart(2, '0')}
               </span>
             </div>
+
+            {gameStatus !== 'in_game' && !winner && (
+              <button
+                type="button"
+                onClick={handleStartGame}
+                className="w-full mt-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+              >
+                <Play className="w-4 h-4 fill-current" /> เริ่มเกม (Start Game)
+              </button>
+            )}
           </div>
 
           {/* Winner Notification */}

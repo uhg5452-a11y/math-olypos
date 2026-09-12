@@ -1,10 +1,12 @@
 /**
  * Real-time Multiplayer & Spectator Sync Service
+ * โรงเรียนบรรหารแจ่มใสวิทยา 3
  * 
  * Supports:
- * 1. Socket.IO Client (for 2 separate devices across network)
- * 2. BroadcastChannel (for instant 0ms cross-window/tab testing)
- * 3. Event pub/sub listeners for React components
+ * 1. Socket.IO Client (Auto-detects Vite dev server on port 3000 or standalone port 5000)
+ * 2. BroadcastChannel (Instant 0ms cross-window/tab testing)
+ * 3. Firebase Realtime Database (Optional plug-in via FIREBASE_DB_URL)
+ * 4. Room State synchronization with caching for newly joined players
  */
 
 import { io } from 'socket.io-client';
@@ -17,12 +19,14 @@ class RealtimeService {
     this.currentRoom = null;
     this.roomRole = null;
     this.isConnected = false;
+    this.connectionListeners = new Set();
+    this.roomStateCache = new Map();
 
     this.init();
   }
 
   init() {
-    // 1. Initialize BroadcastChannel for cross-window zero-delay synchronization
+    // 1. Initialize BroadcastChannel for local cross-window/cross-tab sync
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       try {
         this.broadcastChannel = new BroadcastChannel('math_olympiad_banharn3_realtime');
@@ -37,41 +41,79 @@ class RealtimeService {
       }
     }
 
-    // 2. Initialize Socket.IO connection for cross-device networking
-    try {
-      const serverUrl = import.meta.env?.VITE_SOCKET_URL ||
-        (typeof window !== 'undefined' ? `http://${window.location.hostname}:5000` : 'http://localhost:5000');
+    // 2. Determine Socket Server URL
+    if (typeof window !== 'undefined') {
+      const customUrl = localStorage.getItem('MATH_REALTIME_SERVER_URL') || import.meta.env?.VITE_SOCKET_URL;
+      const defaultUrl = window.location.port === '3000'
+        ? window.location.origin
+        : `http://${window.location.hostname}:3000`;
 
-      this.socket = io(serverUrl, {
-        transports: ['websocket', 'polling'],
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1500,
-        timeout: 5000,
-        autoConnect: true
-      });
+      const serverUrl = customUrl || defaultUrl;
 
-      this.socket.on('connect', () => {
-        this.isConnected = true;
-        console.log('⚡ Realtime Socket connected:', this.socket.id);
-        if (this.currentRoom) {
-          this.socket.emit('join_room', { roomId: this.currentRoom, role: this.roomRole });
-        }
-      });
+      try {
+        this.socket = io(serverUrl, {
+          transports: ['websocket', 'polling'],
+          reconnectionAttempts: 10,
+          reconnectionDelay: 1000,
+          timeout: 5000,
+          autoConnect: true
+        });
 
-      this.socket.on('disconnect', () => {
-        this.isConnected = false;
-        console.log('Realtime Socket disconnected');
-      });
+        this.socket.on('connect', () => {
+          this.isConnected = true;
+          console.log('⚡ [Realtime] Socket connected to:', serverUrl, 'ID:', this.socket.id);
+          this.notifyConnectionState(true);
 
-      this.socket.on('room_event', ({ roomId, eventType, payload, senderId }) => {
-        this.notifyListeners(roomId, eventType, payload, senderId);
-      });
-    } catch (err) {
-      console.warn('Socket.IO init warning:', err);
+          if (this.currentRoom) {
+            this.socket.emit('join_room', { roomId: this.currentRoom, role: this.roomRole });
+          }
+        });
+
+        this.socket.on('disconnect', () => {
+          this.isConnected = false;
+          console.log('⚠️ [Realtime] Socket disconnected');
+          this.notifyConnectionState(false);
+        });
+
+        this.socket.on('connect_error', (err) => {
+          // Fallback to standalone port 5000 if 3000 failed and not explicitly configured
+          if (!customUrl && serverUrl.includes(':3000')) {
+            console.log('Trying fallback to port 5000...');
+            this.socket.io.uri = `http://${window.location.hostname}:5000`;
+            this.socket.connect();
+          }
+        });
+
+        // Room event from other clients
+        this.socket.on('room_event', ({ roomId, eventType, payload, senderId }) => {
+          this.notifyListeners(roomId, eventType, payload, senderId);
+        });
+
+        // Initial room state sync
+        this.socket.on('room_sync_state', ({ roomId, state }) => {
+          if (roomId && state) {
+            this.roomStateCache.set(roomId, state);
+            this.notifyListeners(roomId, 'room_state_synced', state, 'server');
+          }
+        });
+
+      } catch (err) {
+        console.warn('[Realtime] Socket init warning:', err);
+      }
     }
   }
 
-  // Join a competition match room (e.g. 'M101', 'M401')
+  onConnectionChange(cb) {
+    this.connectionListeners.add(cb);
+    cb(this.isConnected);
+    return () => this.connectionListeners.delete(cb);
+  }
+
+  notifyConnectionState(connected) {
+    this.connectionListeners.forEach(cb => cb(connected));
+  }
+
+  // Join a match room (e.g. 'AM-202', 'M101')
   joinRoom(roomId, role = 'spectator', userInfo = {}) {
     this.currentRoom = roomId;
     this.roomRole = role;
@@ -80,7 +122,7 @@ class RealtimeService {
       this.socket.emit('join_room', { roomId, role, userInfo });
     }
 
-    // Notify local channel
+    // Local broadcast
     this.sendEvent(roomId, 'user_joined', { role, userInfo, timestamp: Date.now() });
   }
 
@@ -94,17 +136,17 @@ class RealtimeService {
     }
   }
 
-  // Send real-time game action (e.g. piece move, equation tile placement, speed answer, cheer message)
+  // Send real-time game action
   sendEvent(roomId, eventType, payload) {
     const senderId = this.socket?.id || 'client_' + Math.random().toString(36).slice(2, 8);
     const data = { roomId, eventType, payload, senderId, timestamp: Date.now() };
 
-    // Broadcast locally across tabs/windows
+    // Broadcast locally across tabs/windows (0ms latency)
     if (this.broadcastChannel) {
       try {
         this.broadcastChannel.postMessage(data);
       } catch (e) {
-        console.warn('BroadcastChannel send error:', e);
+        console.warn('BroadcastChannel error:', e);
       }
     }
 
@@ -113,7 +155,21 @@ class RealtimeService {
       this.socket.emit('room_event', data);
     }
 
-    // Trigger local listeners in current window too
+    // Optional Firebase Realtime DB sync
+    const firebaseDbUrl = typeof window !== 'undefined' ? localStorage.getItem('FIREBASE_DB_URL') : null;
+    if (firebaseDbUrl) {
+      try {
+        fetch(`${firebaseDbUrl.replace(/\/$/, '')}/rooms/${roomId}/latest.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        }).catch(() => {});
+      } catch (err) {
+        // Ignore firebase fetch error
+      }
+    }
+
+    // Notify current window listeners
     this.notifyListeners(roomId, eventType, payload, senderId);
   }
 
@@ -125,7 +181,11 @@ class RealtimeService {
     }
     this.listeners.get(key).add(callback);
 
-    // Return unsubscribe function
+    // If cached state exists for room_state_synced, immediately notify
+    if (eventType === 'room_state_synced' && this.roomStateCache.has(roomId)) {
+      setTimeout(() => callback(this.roomStateCache.get(roomId), 'cache'), 0);
+    }
+
     return () => {
       const set = this.listeners.get(key);
       if (set) {
@@ -148,7 +208,6 @@ class RealtimeService {
       });
     }
 
-    // Also notify wildcard listeners for the room
     const wildcardKey = `${roomId}:*`;
     const wildcardListeners = this.listeners.get(wildcardKey);
     if (wildcardListeners) {

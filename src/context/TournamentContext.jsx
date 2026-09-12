@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { storageService } from '../services/storageService';
+import { realtimeService } from '../services/realtimeService';
 import { useAuth } from './AuthContext';
 
 const TournamentContext = createContext();
@@ -7,33 +8,22 @@ const TournamentContext = createContext();
 export function TournamentProvider({ children }) {
   const [tournaments, setTournaments] = useState(() => storageService.getTournaments());
   const [activeToast, setActiveToast] = useState(null);
-  const [activeAlertMatch, setActiveAlertMatch] = useState(null);
   const { currentUser, updateStudentData } = useAuth();
 
   useEffect(() => {
     storageService.saveTournaments(tournaments);
   }, [tournaments]);
 
-  // Check for tournaments starting in 15 minutes or registered matches
+  // Real-time synchronization for tournament registrations and match status across devices
   useEffect(() => {
-    if (!currentUser || currentUser.role !== 'student') return;
-
-    // Check if student is registered for tourney-1 which is set to start in 15 mins
-    const userTournaments = tournaments.filter(t => 
-      t.registeredStudents?.includes(currentUser.studentId)
-    );
-
-    const upcomingWithin15Min = userTournaments.find(t => {
-      const start = new Date(t.startDate).getTime();
-      const now = Date.now();
-      const diffMinutes = (start - now) / (1000 * 60);
-      return diffMinutes > 0 && diffMinutes <= 20;
+    const unsub = realtimeService.subscribe('system_sync', 'tournament_updated', (payload) => {
+      if (payload?.tournaments) {
+        setTournaments(payload.tournaments);
+      }
     });
 
-    if (upcomingWithin15Min) {
-      setActiveAlertMatch(upcomingWithin15Min);
-    }
-  }, [tournaments, currentUser]);
+    return () => unsub();
+  }, []);
 
   // Show a toast message
   const showToast = (message, type = 'info', duration = 5000) => {
@@ -45,18 +35,7 @@ export function TournamentProvider({ children }) {
 
   const closeToast = () => setActiveToast(null);
 
-  // Manual Trigger for 15-Minute Countdown Alert Demo
-  const trigger15MinAlert = (tournamentId) => {
-    const target = tournaments.find(t => t.id === tournamentId) || tournaments[0];
-    setActiveAlertMatch(target);
-    showToast(`⏰ แจ้งเตือนด่วน: รายการ "${target.title}" จะเริ่มแข่งขันในอีก 15 นาที! กรุณาเตรียมตัว`, 'warning', 7000);
-  };
-
-  const dismissMatchAlert = () => {
-    setActiveAlertMatch(null);
-  };
-
-  // Student Register for Tournament
+  // Student Register for Tournament (Real-time synced)
   const registerTournament = (tournamentId) => {
     if (!currentUser || currentUser.role !== 'student') {
       showToast('กรุณาเข้าสู่ระบบด้วยรหัสนักเรียนก่อนลงทะเบียน', 'error');
@@ -92,6 +71,7 @@ export function TournamentProvider({ children }) {
       return t;
     });
     setTournaments(updatedTournaments);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: updatedTournaments });
 
     // Update Student Profile
     const updatedStudent = {
@@ -121,6 +101,7 @@ export function TournamentProvider({ children }) {
       return t;
     });
     setTournaments(updatedTournaments);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: updatedTournaments });
 
     const updatedStudent = {
       ...currentUser,
@@ -134,35 +115,43 @@ export function TournamentProvider({ children }) {
 
   // Admin Actions
   const toggleTournamentRegistration = (tournamentId) => {
-    setTournaments(prev => prev.map(t => {
+    const nextTourneys = tournaments.map(t => {
       if (t.id === tournamentId) {
         const nextState = !t.isRegistrationOpen;
         const nextStatus = nextState ? 'open' : 'closed';
         return { ...t, isRegistrationOpen: nextState, status: nextStatus };
       }
       return t;
-    }));
+    });
+    setTournaments(nextTourneys);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: nextTourneys });
     showToast('อัปเดตสถานะการรับสมัครเรียบร้อยแล้ว', 'success');
   };
 
   const updateTournament = (updatedTourney) => {
-    setTournaments(prev => prev.map(t => t.id === updatedTourney.id ? updatedTourney : t));
+    const nextTourneys = tournaments.map(t => t.id === updatedTourney.id ? updatedTourney : t);
+    setTournaments(nextTourneys);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: nextTourneys });
     showToast(`อัปเดตรายการ "${updatedTourney.title}" สำเร็จ`, 'success');
   };
 
   const addTournament = (newTourney) => {
-    setTournaments(prev => [newTourney, ...prev]);
+    const nextTourneys = [newTourney, ...tournaments];
+    setTournaments(nextTourneys);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: nextTourneys });
     showToast(`เพิ่มการแข่งขันใหม่: "${newTourney.title}" สำเร็จ`, 'success');
   };
 
   const deleteTournament = (tournamentId) => {
-    setTournaments(prev => prev.filter(t => t.id !== tournamentId));
+    const nextTourneys = tournaments.filter(t => t.id !== tournamentId);
+    setTournaments(nextTourneys);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: nextTourneys });
     showToast('ลบรายการแข่งขันเรียบร้อยแล้ว', 'info');
   };
 
   // Record Match result
   const recordMatchResult = (tournamentId, matchId, player1Score, player2Score, winnerId, roomStatus = 'closed') => {
-    setTournaments(prev => prev.map(t => {
+    const nextTourneys = tournaments.map(t => {
       if (t.id === tournamentId) {
         const updatedMatches = (t.matches || []).map(m => {
           if (m.matchId === matchId) {
@@ -180,7 +169,9 @@ export function TournamentProvider({ children }) {
         return { ...t, matches: updatedMatches };
       }
       return t;
-    }));
+    });
+    setTournaments(nextTourneys);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: nextTourneys });
     showToast('บันทึกผลการแข่งขันและปิดห้องแข่งขันเรียบร้อยแล้ว', 'success');
   };
 
@@ -197,10 +188,7 @@ export function TournamentProvider({ children }) {
         recordMatchResult,
         activeToast,
         showToast,
-        closeToast,
-        activeAlertMatch,
-        dismissMatchAlert,
-        trigger15MinAlert
+        closeToast
       }}
     >
       {children}

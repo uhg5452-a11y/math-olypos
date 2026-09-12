@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Trophy, Clock, RotateCcw, CheckCircle2,
   Sparkles, RefreshCw, Radio, Copy, Check, 
-  ShieldAlert, Undo2, Users, Bot
+  ShieldAlert, Undo2, Users, Play, LogIn, Wifi, ArrowRight, Eye
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
@@ -71,29 +71,35 @@ function generateTilePool() {
   return pool.sort(() => Math.random() - 0.5);
 }
 
+function initializeStarterBoard() {
+  const b = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
+  // Pre-place starter center equation on row 7 (index 7)
+  b[7][5] = { value: '8', isPermanent: true };
+  b[7][6] = { value: '+', isPermanent: true };
+  b[7][7] = { value: '7', isPermanent: true }; // Center star
+  b[7][8] = { value: '=', isPermanent: true };
+  b[7][9] = { value: '15', isPermanent: true };
+  return b;
+}
+
 export default function AMathGame() {
   const { recordGameResult } = useGame();
   const { currentUser } = useAuth();
 
   // Mode: 'pass_play', 'realtime_2p'
-  const [gameMode, setGameMode] = useState('pass_play');
+  const [gameMode, setGameMode] = useState('realtime_2p');
   const [roomId, setRoomId] = useState('AM-202');
-  const [myRole, setMyRole] = useState('p1'); // 'p1' or 'p2'
+  const [inputRoomCode, setInputRoomCode] = useState('');
+  const [myRole, setMyRole] = useState('p1'); // 'p1', 'p2', or 'spectator'
   const [copiedLink, setCopiedLink] = useState(false);
 
-  // Board: 15x15 cells. Each cell: null or { value: string, isPermanent: boolean }
-  const [board, setBoard] = useState(() => {
-    const b = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
-    // Pre-place starter center equation on row 7 (index 7)
-    b[7][5] = { value: '8', isPermanent: true };
-    b[7][6] = { value: '+', isPermanent: true };
-    b[7][7] = { value: '7', isPermanent: true }; // Center star
-    b[7][8] = { value: '=', isPermanent: true };
-    b[7][9] = { value: '15', isPermanent: true };
-    return b;
-  });
+  // Game Status: 'ready' (waiting to press Start), 'in_game', 'finished'
+  const [gameStatus, setGameStatus] = useState('ready');
 
-  // Player state
+  // Board State
+  const [board, setBoard] = useState(() => initializeStarterBoard());
+
+  // Distinct Racks for P1 and P2
   const [tilePool, setTilePool] = useState(() => generateTilePool());
   const [rackP1, setRackP1] = useState(['9', '×', '3', '=', '27', '+', '4', '12']);
   const [rackP2, setRackP2] = useState(['16', '÷', '4', '=', '4', '6', '-', '2']);
@@ -101,22 +107,22 @@ export default function AMathGame() {
   const [scoreP1, setScoreP1] = useState(15);
   const [scoreP2, setScoreP2] = useState(0);
 
-  // Selected tile from rack (index)
+  // Selected tile from rack
   const [selectedRackIdx, setSelectedRackIdx] = useState(null);
   const [placedThisTurn, setPlacedThisTurn] = useState([]); // Array of { r, c, value, rackIdx }
 
-  // Status & Anti-Exploit
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('ตาของผู้เล่น 1: เลือกเบี้ยบนแท่นวางแล้วคลิกวางลงบนกระดาน 15x15');
-  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes per turn
+  // Turn timer (120s). Only ticks when gameStatus === 'in_game'!
+  const [timeLeft, setTimeLeft] = useState(120);
   const [isPaused, setIsPaused] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusMessage, setStatusMessage] = useState('พร้อมเริ่มการแข่งขัน: กดปุ่ม "เริ่มเกม (Start Game)" เพื่อเริ่มนับเวลาแข่งขัน');
   const [isMatchOver, setIsMatchOver] = useState(false);
   const [matchWinner, setMatchWinner] = useState(null);
   const [history, setHistory] = useState([
     { eq: '8 + 7 = 15', pts: 15, player: 'System (Starter)' }
   ]);
 
-  // Check URL params for auto-joining room
+  // Check URL query parameters for auto-joining match room
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomParam = params.get('room');
@@ -125,37 +131,56 @@ export default function AMathGame() {
       setRoomId(roomParam);
       setGameMode('realtime_2p');
       if (roleParam === 'p2') setMyRole('p2');
+      else if (roleParam === 'spectator') setMyRole('spectator');
       else setMyRole('p1');
     }
   }, []);
 
-  // Timer per turn
+  // Timer countdown: ONLY when gameStatus === 'in_game' and not paused/over
   useEffect(() => {
-    if (isMatchOver || isPaused) return;
+    if (gameStatus !== 'in_game' || isMatchOver || isPaused) return;
+
     if (timeLeft <= 0) {
       handlePassTurn();
       return;
     }
-    const timer = setInterval(() => setTimeLeft(t => t - 1), 1000);
-    return () => clearInterval(timer);
-  }, [timeLeft, isMatchOver, isPaused, currentTurn]);
 
-  // Real-time synchronization
+    const timer = setInterval(() => {
+      setTimeLeft(t => t - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameStatus, timeLeft, isMatchOver, isPaused, currentTurn]);
+
+  // Real-time listener for 2-device multiplayer
   useEffect(() => {
     if (gameMode !== 'realtime_2p') return;
 
-    realtimeService.joinRoom(roomId, myRole === 'p1' ? 'player1' : 'player2');
+    realtimeService.joinRoom(roomId, myRole);
 
+    // Turn events
     const unsubTurn = realtimeService.subscribe(roomId, 'amath_turn', (payload) => {
       if (payload.board) setBoard(payload.board);
       if (payload.currentTurn) setCurrentTurn(payload.currentTurn);
       if (payload.scoreP1 !== undefined) setScoreP1(payload.scoreP1);
       if (payload.scoreP2 !== undefined) setScoreP2(payload.scoreP2);
+      if (payload.rackP1 && myRole !== 'p1') setRackP1(payload.rackP1);
+      if (payload.rackP2 && myRole !== 'p2') setRackP2(payload.rackP2);
+      if (payload.tilePool) setTilePool(payload.tilePool);
       if (payload.history) setHistory(payload.history);
       if (payload.statusMessage) setStatusMessage(payload.statusMessage);
+      if (payload.gameStatus) setGameStatus(payload.gameStatus);
       setTimeLeft(120);
     });
 
+    // Start Game sync event across 2 devices
+    const unsubStart = realtimeService.subscribe(roomId, 'game_started', (payload) => {
+      setGameStatus('in_game');
+      setTimeLeft(120);
+      setStatusMessage('⚡ การแข่งขันเริ่มต้นแล้ว! นับเวลาถอยหลัง 120 วินาทีประจำเทิร์น');
+    });
+
+    // Arbiter control events
     const unsubControl = realtimeService.subscribe(roomId, 'match_control', (payload) => {
       if (payload.action === 'pause') {
         setIsPaused(true);
@@ -167,25 +192,88 @@ export default function AMathGame() {
         alert('กรรมการได้ทำการยกเลิกหรือรีเซ็ตห้องแข่งขันนี้');
         resetGame();
       } else if (payload.action === 'force_start') {
+        setGameStatus('in_game');
         setIsPaused(false);
         setTimeLeft(120);
       }
     });
 
+    // Catch full state sync if joined after match has started
+    const unsubSync = realtimeService.subscribe(roomId, 'room_state_synced', (state) => {
+      if (state) {
+        if (state.board) setBoard(state.board);
+        if (state.currentTurn) setCurrentTurn(state.currentTurn);
+        if (state.scoreP1 !== undefined) setScoreP1(state.scoreP1);
+        if (state.scoreP2 !== undefined) setScoreP2(state.scoreP2);
+        if (state.rackP1 && myRole !== 'p1') setRackP1(state.rackP1);
+        if (state.rackP2 && myRole !== 'p2') setRackP2(state.rackP2);
+        if (state.tilePool) setTilePool(state.tilePool);
+        if (state.history) setHistory(state.history);
+        if (state.gameStatus) setGameStatus(state.gameStatus);
+        if (state.statusMessage) setStatusMessage(state.statusMessage);
+      }
+    });
+
     return () => {
       unsubTurn();
+      unsubStart();
       unsubControl();
+      unsubSync();
       realtimeService.leaveRoom(roomId);
     };
   }, [gameMode, roomId, myRole]);
 
-  const activeRack = currentTurn === 'p1' ? rackP1 : rackP2;
-  const setActiveRack = currentTurn === 'p1' ? setRackP1 : setRackP2;
-  const isMyTurn = gameMode !== 'realtime_2p' || myRole === currentTurn;
+  // Which rack belongs to this client?
+  const myRack = myRole === 'p2' ? rackP2 : rackP1;
+  const setMyRack = myRole === 'p2' ? setRackP2 : setRackP1;
+
+  // Active rack in pass_play mode
+  const activeRack = gameMode === 'realtime_2p' ? myRack : (currentTurn === 'p1' ? rackP1 : rackP2);
+  const setActiveRack = gameMode === 'realtime_2p' ? setMyRack : (currentTurn === 'p1' ? setRackP1 : setRackP2);
+
+  // Turn permission check
+  const isMyTurn = gameMode !== 'realtime_2p' || (myRole === currentTurn && myRole !== 'spectator');
+
+  // Handle Start Game click (Requirement 3: Timer does not start before this!)
+  const handleStartGame = () => {
+    setGameStatus('in_game');
+    setTimeLeft(120);
+    const msg = '⚡ การแข่งขันเริ่มต้นแล้ว! ตาของผู้เล่น 1';
+    setStatusMessage(msg);
+
+    if (gameMode === 'realtime_2p') {
+      realtimeService.sendEvent(roomId, 'game_started', {
+        gameStatus: 'in_game',
+        startedAt: Date.now()
+      });
+      realtimeService.sendEvent(roomId, 'amath_turn', {
+        board,
+        currentTurn: 'p1',
+        scoreP1,
+        scoreP2,
+        rackP1,
+        rackP2,
+        tilePool,
+        history,
+        gameStatus: 'in_game',
+        statusMessage: msg
+      });
+    }
+  };
+
+  // Switch Room or Join Code
+  const handleJoinCustomRoom = (e) => {
+    e.preventDefault();
+    if (!inputRoomCode.trim()) return;
+    const clean = inputRoomCode.trim().toUpperCase();
+    setRoomId(clean);
+    setInputRoomCode('');
+    resetGame();
+  };
 
   // Handle cell click on 15x15 board
   const handleCellClick = (r, c) => {
-    if (isMatchOver || isPaused || !isMyTurn) return;
+    if (gameStatus !== 'in_game' || isMatchOver || isPaused || !isMyTurn) return;
 
     const cell = board[r][c];
 
@@ -256,7 +344,11 @@ export default function AMathGame() {
         currentTurn: nextTurn,
         scoreP1,
         scoreP2,
+        rackP1,
+        rackP2,
+        tilePool,
         history,
+        gameStatus,
         statusMessage: msg
       });
     }
@@ -276,12 +368,31 @@ export default function AMathGame() {
 
     const newPool = [...tilePool, ...exchanged].sort(() => Math.random() - 0.5);
     const drawn = newPool.splice(0, exchangeCount);
+    const newRack = [...remaining, ...drawn];
 
-    setActiveRack([...remaining, ...drawn]);
+    setActiveRack(newRack);
     setTilePool(newPool);
 
-    handlePassTurn();
-    setStatusMessage(`เปลี่ยนเบี้ย ${exchangeCount} ตัวและส่งต่อเทิร์น`);
+    const nextTurn = currentTurn === 'p1' ? 'p2' : 'p1';
+    setCurrentTurn(nextTurn);
+    setTimeLeft(120);
+    const msg = `ผู้เล่น ${currentTurn === 'p1' ? '1' : '2'} เปลี่ยนเบี้ย ${exchangeCount} ตัวและส่งต่อเทิร์น`;
+    setStatusMessage(msg);
+
+    if (gameMode === 'realtime_2p') {
+      realtimeService.sendEvent(roomId, 'amath_turn', {
+        board,
+        currentTurn: nextTurn,
+        scoreP1,
+        scoreP2,
+        rackP1: myRole === 'p1' ? newRack : rackP1,
+        rackP2: myRole === 'p2' ? newRack : rackP2,
+        tilePool: newPool,
+        history,
+        gameStatus,
+        statusMessage: msg
+      });
+    }
   };
 
   // Action: Challenge Opponent's previous move
@@ -422,11 +533,14 @@ export default function AMathGame() {
     });
     setBoard(newBoard);
 
+    // Replenish tiles from pool to current player's rack
     const needCount = 8 - activeRack.length;
     const newPool = [...tilePool];
     const drawn = newPool.splice(0, needCount);
     setTilePool(newPool);
-    setActiveRack([...activeRack, ...drawn]);
+
+    const updatedActiveRack = [...activeRack, ...drawn];
+    setActiveRack(updatedActiveRack);
 
     const newP1Score = currentTurn === 'p1' ? scoreP1 + turnPoints : scoreP1;
     const newP2Score = currentTurn === 'p2' ? scoreP2 + turnPoints : scoreP2;
@@ -444,6 +558,7 @@ export default function AMathGame() {
     confetti({ particleCount: 40, spread: 60, origin: { y: 0.6 } });
     recordGameResult('a-math', Math.max(newP1Score, newP2Score), { equation: mainEquation });
 
+    // Switch turn
     const nextTurn = currentTurn === 'p1' ? 'p2' : 'p1';
     setCurrentTurn(nextTurn);
     setPlacedThisTurn([]);
@@ -452,13 +567,18 @@ export default function AMathGame() {
     const successMsg = `🎉 สมการ "${mainEquation}" ถูกต้อง! ได้รับ +${turnPoints} แต้ม -> ตาของผู้เล่น ${nextTurn === 'p1' ? '1' : '2'}`;
     setStatusMessage(successMsg);
 
+    // Synchronize to remote device via Socket.IO/Realtime
     if (gameMode === 'realtime_2p') {
       realtimeService.sendEvent(roomId, 'amath_turn', {
         board: newBoard,
         currentTurn: nextTurn,
         scoreP1: newP1Score,
         scoreP2: newP2Score,
+        rackP1: myRole === 'p1' ? updatedActiveRack : rackP1,
+        rackP2: myRole === 'p2' ? updatedActiveRack : rackP2,
+        tilePool: newPool,
         history: nextHistory,
+        gameStatus: 'in_game',
         statusMessage: successMsg
       });
     }
@@ -467,12 +587,7 @@ export default function AMathGame() {
   };
 
   const resetGame = () => {
-    const b = Array(BOARD_SIZE).fill(null).map(() => Array(BOARD_SIZE).fill(null));
-    b[7][5] = { value: '8', isPermanent: true };
-    b[7][6] = { value: '+', isPermanent: true };
-    b[7][7] = { value: '7', isPermanent: true };
-    b[7][8] = { value: '=', isPermanent: true };
-    b[7][9] = { value: '15', isPermanent: true };
+    const b = initializeStarterBoard();
     setBoard(b);
     setScoreP1(15);
     setScoreP2(0);
@@ -483,9 +598,10 @@ export default function AMathGame() {
     setPlacedThisTurn([]);
     setSelectedRackIdx(null);
     setTimeLeft(120);
+    setGameStatus('ready');
     setIsMatchOver(false);
     setMatchWinner(null);
-    setStatusMessage('รีเซ็ตกระดานเริ่มเกมใหม่เรียบร้อยแล้ว');
+    setStatusMessage('รีเซ็ตกระดานเรียบร้อยแล้ว กด "เริ่มเกม (Start Game)" เพื่อเริ่มนับเวลาแข่งขัน');
   };
 
   const copyDirectRoomLink = () => {
@@ -514,7 +630,8 @@ export default function AMathGame() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="bg-[#1E3E62]/60 rounded-3xl p-4 sm:p-6 border border-white/10 backdrop-blur-md">
+      {/* Top Match Bar */}
+      <div className="bg-[#1E3E62]/60 rounded-3xl p-4 sm:p-6 border border-white/10 backdrop-blur-md shadow-xl">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -524,10 +641,11 @@ export default function AMathGame() {
               <span className="text-xs text-slate-300">โรงเรียนบรรหารแจ่มใสวิทยา 3</span>
             </div>
             <h2 className="text-2xl font-black text-white mt-1 flex items-center gap-2">
-              เอแมท (Standard A-Math 2-Player) 🔤
+              เอแมท (Standard A-Math 2-Player Online) 🔤
             </h2>
           </div>
 
+          {/* Mode & Room Controls */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex bg-[#0B192C] p-1 rounded-xl border border-white/10 text-xs">
               <button
@@ -536,7 +654,7 @@ export default function AMathGame() {
                   gameMode === 'pass_play' ? 'bg-[#008DDA] text-white' : 'text-slate-400'
                 }`}
               >
-                ผลัดกันเล่น (Pass & Play)
+                ผลัดกันเล่น (เครื่องเดียว)
               </button>
               <button
                 onClick={() => setGameMode('realtime_2p')}
@@ -544,22 +662,90 @@ export default function AMathGame() {
                   gameMode === 'realtime_2p' ? 'bg-emerald-600 text-white' : 'text-slate-400'
                 }`}
               >
-                <Radio className="w-3 h-3" /> ออนไลน์ 2 เครื่อง
+                <Radio className="w-3.5 h-3.5" /> ออนไลน์ 2 เครื่อง (Live Sync)
               </button>
             </div>
 
             {gameMode === 'realtime_2p' && (
-              <button
-                onClick={copyDirectRoomLink}
-                className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all"
-              >
-                {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                {copiedLink ? 'คัดลอกลิงก์แล้ว!' : `แชร์ลิงก์ห้อง (${roomId})`}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={copyDirectRoomLink}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 border border-white/10 transition-all"
+                  title="คัดลอกลิงก์ตรงให้ผู้เล่นอีกคนเข้าห้องนี้"
+                >
+                  {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copiedLink ? 'คัดลอกลิงก์แล้ว!' : `แชร์ลิงก์ (${roomId})`}
+                </button>
+              </div>
             )}
           </div>
         </div>
 
+        {/* 2-Device Room Selection Toolbar */}
+        {gameMode === 'realtime_2p' && (
+          <div className="mt-4 pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs">
+            <div className="flex items-center gap-3">
+              <span className="text-slate-400 font-bold">บทบาทของเครื่องนี้:</span>
+              <div className="flex bg-[#0B192C] p-1 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setMyRole('p1')}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                    myRole === 'p1' ? 'bg-[#008DDA] text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  ผู้เล่น 1 (P1)
+                </button>
+                <button
+                  onClick={() => setMyRole('p2')}
+                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                    myRole === 'p2' ? 'bg-amber-500 text-slate-950 font-black' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  ผู้เล่น 2 (P2)
+                </button>
+                <button
+                  onClick={() => setMyRole('spectator')}
+                  className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1 transition-all ${
+                    myRole === 'spectator' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Eye className="w-3 h-3" /> ผู้ชม (Live)
+                </button>
+              </div>
+            </div>
+
+            {/* Room Code Form */}
+            <form onSubmit={handleJoinCustomRoom} className="flex items-center gap-2">
+              <span className="text-slate-400 font-bold">รหัสห้อง:</span>
+              <input
+                type="text"
+                placeholder="เช่น AM-202"
+                value={inputRoomCode}
+                onChange={(e) => setInputRoomCode(e.target.value)}
+                className="w-28 px-3 py-1.5 rounded-xl bg-[#0B192C] border border-white/20 text-white font-mono font-bold text-center text-xs focus:outline-none focus:border-[#008DDA]"
+              />
+              <button
+                type="submit"
+                className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-all"
+              >
+                เข้าห้อง
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const newCode = 'AM-' + Math.floor(100 + Math.random() * 900);
+                  setRoomId(newCode);
+                  resetGame();
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-[#008DDA]/20 hover:bg-[#008DDA]/30 text-[#008DDA] border border-[#008DDA]/40 text-xs font-bold transition-all"
+              >
+                สุ่มห้องใหม่
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Players Scoreboard & Timer */}
         <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-white/10 items-center text-center">
           <div className={`p-3 rounded-2xl border transition-all ${
             currentTurn === 'p1' ? 'bg-[#008DDA]/20 border-[#008DDA] shadow-lg shadow-blue-500/20' : 'bg-[#0B192C]/60 border-white/5'
@@ -571,15 +757,29 @@ export default function AMathGame() {
             <div className="text-[10px] text-slate-400">เบี้ยบนแท่น: {rackP1.length} ตัว</div>
           </div>
 
+          {/* Center Timer & Start Game Controller */}
           <div className="bg-[#0B192C]/80 p-3 rounded-2xl border border-white/10">
             <div className="text-[10px] text-slate-400 uppercase font-bold">เวลาประจำเทิร์น</div>
-            <div className={`text-2xl font-black font-mono mt-0.5 flex items-center justify-center gap-1.5 ${
-              timeLeft <= 20 ? 'text-rose-400 animate-pulse' : 'text-white'
-            }`}>
-              <Clock className="w-4 h-4 text-amber-400" /> {formatTimer(timeLeft)}
-            </div>
-            <div className="text-[10px] text-emerald-400 font-bold">
-              ตาของ: {currentTurn === 'p1' ? 'ผู้เล่น 1' : 'ผู้เล่น 2'}
+            
+            {gameStatus === 'in_game' ? (
+              <div className={`text-2xl font-black font-mono mt-0.5 flex items-center justify-center gap-1.5 ${
+                timeLeft <= 20 ? 'text-rose-400 animate-pulse' : 'text-white'
+              }`}>
+                <Clock className="w-4 h-4 text-amber-400" /> {formatTimer(timeLeft)}
+              </div>
+            ) : (
+              <div className="mt-1">
+                <button
+                  onClick={handleStartGame}
+                  className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-1.5 mx-auto active:scale-95 transition-all"
+                >
+                  <Play className="w-3.5 h-3.5 fill-current" /> เริ่มเกม (Start Game)
+                </button>
+              </div>
+            )}
+
+            <div className="text-[10px] text-emerald-400 font-bold mt-1">
+              {gameStatus === 'in_game' ? `ตาของ: ${currentTurn === 'p1' ? 'ผู้เล่น 1' : 'ผู้เล่น 2'}` : '⏳ รอเริ่มการแข่งขัน'}
             </div>
           </div>
 
@@ -595,9 +795,11 @@ export default function AMathGame() {
         </div>
       </div>
 
+      {/* Main Game Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div className="lg:col-span-3 bg-[#0B192C]/90 rounded-3xl p-3 sm:p-6 border border-white/10 shadow-2xl flex flex-col items-center">
           
+          {/* Status Message */}
           <div className="w-full mb-3 px-4 py-2.5 rounded-xl bg-[#1E3E62]/60 border border-white/10 text-xs font-medium text-slate-200 flex items-center justify-between">
             <span className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
@@ -653,18 +855,19 @@ export default function AMathGame() {
             )}
           </div>
 
-          {/* Rack */}
+          {/* Player Rack (8 Tiles) */}
           <div className="w-full max-w-xl mt-6 p-4 rounded-2xl bg-[#1E3E62]/70 border border-white/10 shadow-lg flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-300">
-                แท่นวางเบี้ย ({currentTurn === 'p1' ? 'P1' : 'P2'}):
+                {gameMode === 'realtime_2p' ? `แท่นวางของคุณ (${myRole.toUpperCase()}):` : `แท่นวางเบี้ย (${currentTurn.toUpperCase()}):`}
               </span>
               <div className="flex items-center gap-1.5">
                 {activeRack.map((tile, idx) => (
                   <button
                     key={idx}
+                    disabled={gameStatus !== 'in_game' || !isMyTurn}
                     onClick={() => setSelectedRackIdx(selectedRackIdx === idx ? null : idx)}
-                    className={`w-8 h-10 sm:w-10 sm:h-12 rounded-xl flex flex-col items-center justify-center font-black transition-all shadow-md active:scale-95 select-none ${
+                    className={`w-8 h-10 sm:w-10 sm:h-12 rounded-xl flex flex-col items-center justify-center font-black transition-all shadow-md active:scale-95 select-none disabled:opacity-50 ${
                       selectedRackIdx === idx
                         ? 'bg-[#008DDA] text-white ring-2 ring-white -translate-y-1.5 shadow-blue-500/40'
                         : 'bg-gradient-to-b from-amber-100 to-amber-200 text-slate-950 hover:bg-amber-300'
@@ -691,10 +894,11 @@ export default function AMathGame() {
             </div>
           </div>
 
+          {/* Action Toolbar */}
           <div className="w-full max-w-xl mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
             <button
               onClick={handleSubmitTurn}
-              disabled={isSubmitting || placedThisTurn.length === 0 || !isMyTurn}
+              disabled={isSubmitting || placedThisTurn.length === 0 || !isMyTurn || gameStatus !== 'in_game'}
               className="px-4 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-40 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition-all active:scale-95"
             >
               <CheckCircle2 className="w-4 h-4" /> ส่งสมการ (Play)
@@ -702,7 +906,7 @@ export default function AMathGame() {
 
             <button
               onClick={handlePassTurn}
-              disabled={!isMyTurn}
+              disabled={!isMyTurn || gameStatus !== 'in_game'}
               className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
             >
               <RotateCcw className="w-4 h-4" /> ข้ามเทิร์น (Pass)
@@ -710,7 +914,7 @@ export default function AMathGame() {
 
             <button
               onClick={handleExchange}
-              disabled={!isMyTurn || placedThisTurn.length > 0}
+              disabled={!isMyTurn || placedThisTurn.length > 0 || gameStatus !== 'in_game'}
               className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
             >
               <RefreshCw className="w-4 h-4" /> เปลี่ยนเบี้ย
@@ -718,7 +922,7 @@ export default function AMathGame() {
 
             <button
               onClick={handleChallenge}
-              disabled={!isMyTurn}
+              disabled={!isMyTurn || gameStatus !== 'in_game'}
               className="px-4 py-3 rounded-xl bg-rose-600/80 hover:bg-rose-500 disabled:opacity-40 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
             >
               <ShieldAlert className="w-4 h-4" /> ท้าทาย
@@ -727,6 +931,7 @@ export default function AMathGame() {
 
         </div>
 
+        {/* Right 1 col: Move History & Multipliers Legend */}
         <div className="space-y-4">
           <div className="bg-[#1E3E62]/50 border border-white/10 rounded-2xl p-4 text-xs space-y-2.5">
             <div className="font-bold text-white flex items-center gap-1.5">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trophy, Calendar, Users, Clock, CheckCircle, AlertCircle, ArrowRight, ShieldCheck, Sparkles, Filter, Eye } from 'lucide-react';
+import { Trophy, Calendar, Users, Clock, CheckCircle, AlertCircle, ArrowRight, ShieldCheck, Sparkles, Filter, Eye, Gamepad2 } from 'lucide-react';
 import { useTournament } from '../../context/TournamentContext';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../common/Modal';
@@ -53,6 +53,17 @@ export default function TournamentList({ onOpenLogin }) {
     setCancelingTournament(tourney);
   };
 
+  const handleEnterMatch = (tourney) => {
+    const roomId = tourney.id || `MATCH-${tourney.category}`;
+    const game = tourney.category || 'a-math';
+    const url = new URL(window.location.href);
+    url.searchParams.set('game', game);
+    url.searchParams.set('room', roomId);
+    url.searchParams.set('role', 'p1');
+    window.history.pushState({}, '', url.toString());
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game, room: roomId } }));
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Hero Header */}
@@ -64,19 +75,10 @@ export default function TournamentList({ onOpenLogin }) {
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-3">
             เวทีประลองปัญญา <span className="text-[#008DDA] glow-primary">คณิตศาสตร์ระดับโรงเรียน</span>
           </h1>
-          <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
+          <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-4">
             การแข่งขันจัดขึ้นเป็นรอบตามที่แอดมินกำหนด รองรับนักเรียนทุกคนในโรงเรียน (ม.1 - ม.6) 
             สามารถลงทะเบียนแข่งขัน หรือกดเข้าชมการแข่งขันสด (Live Spectator) ร่วมส่งกำลังใจเชียร์เพื่อนๆ ได้
           </p>
-
-          <div className="flex flex-wrap items-center gap-4 text-xs font-semibold text-slate-300">
-            <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" /> ตรวจจับเวลาแข่งขันอัตโนมัติ
-            </div>
-            <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg border border-white/10">
-              <Clock className="w-4 h-4 text-amber-400" /> ระบบแจ้งเตือน 15 นาทีก่อนแข่ง
-            </div>
-          </div>
         </div>
 
         {/* Decorative Background Math equations */}
@@ -201,11 +203,22 @@ export default function TournamentList({ onOpenLogin }) {
                 </div>
               </div>
 
-              {/* Registered Badge if applicable */}
+              {/* Registered Badge & Enter Match Button */}
               {registered && (
-                <div className="mb-3 px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
-                  <span>คุณได้ลงทะเบียนรอบนี้แล้ว</span>
+                <div className="mb-3 space-y-2">
+                  <div className="px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>คุณได้ลงทะเบียนรอบนี้แล้ว</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleEnterMatch(tourney)}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-black shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 active:scale-95 transition-all border border-emerald-400/40"
+                  >
+                    <Gamepad2 className="w-4 h-4" /> เข้าสู่ห้องแข่งขัน (Join Match)
+                  </button>
                 </div>
               )}
 

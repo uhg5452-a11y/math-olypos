@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Gamepad2, ArrowRight, Sparkles, Trophy, Zap, Grid, Eye, Shuffle, ShieldAlert } from 'lucide-react';
 import AMathGame from './AMathGame';
 import SudokuGame from './SudokuGame';
@@ -19,6 +19,16 @@ export default function GamesHub() {
     }
     return null;
   });
+
+  useEffect(() => {
+    const handleNav = (e) => {
+      if (e.detail?.game) {
+        setActiveGame(e.detail.game);
+      }
+    };
+    window.addEventListener('navigate_view', handleNav);
+    return () => window.removeEventListener('navigate_view', handleNav);
+  }, []);
 
   const games = [
     {

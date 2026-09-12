@@ -31,6 +31,14 @@ function MainContent() {
     if (roomParam) {
       setCurrentView('practice');
     }
+
+    const handleNav = (e) => {
+      if (e.detail?.view) {
+        setCurrentView(e.detail.view);
+      }
+    };
+    window.addEventListener('navigate_view', handleNav);
+    return () => window.removeEventListener('navigate_view', handleNav);
   }, []);
 
   const handleLoginSuccess = (role) => {

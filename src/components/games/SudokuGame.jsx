@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle2, Trophy, Clock, AlertTriangle, Edit3, Sparkles } from 'lucide-react';
+import { RotateCcw, CheckCircle2, Trophy, Clock, AlertTriangle, Edit3, Sparkles, Play } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 
@@ -65,21 +65,22 @@ export default function SudokuGame() {
   const [mistakes, setMistakes] = useState(0);
   // Countdown Timer Mode: 5-minute competition limit
   const [timer, setTimer] = useState(300);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
 
   const currentPreset = SUDOKU_PRESETS[difficulty];
 
-  // Countdown Timer
+  // Countdown Timer (Requirement 3: Only counts down when isPlaying is true)
   useEffect(() => {
-    if (isCompleted || isTimeUp) return;
+    if (!isPlaying || isCompleted || isTimeUp) return;
     if (timer <= 0) {
       setIsTimeUp(true);
       return;
     }
     const interval = setInterval(() => setTimer(t => t - 1), 1000);
     return () => clearInterval(interval);
-  }, [isCompleted, isTimeUp, timer]);
+  }, [isPlaying, isCompleted, isTimeUp, timer]);
 
   const loadDifficulty = (diff) => {
     setDifficulty(diff);
@@ -88,6 +89,7 @@ export default function SudokuGame() {
     setSelectedCell([0, 0]);
     setMistakes(0);
     setTimer(300);
+    setIsPlaying(false);
     setIsTimeUp(false);
     setIsCompleted(false);
   };
@@ -97,7 +99,7 @@ export default function SudokuGame() {
   };
 
   const handleNumberInput = (num) => {
-    if (isCompleted) return;
+    if (!isPlaying || isCompleted || isTimeUp) return;
     const [r, c] = selectedCell;
     const isOriginal = currentPreset.puzzle[r][c] !== 0;
     if (isOriginal) return;
@@ -287,6 +289,19 @@ export default function SudokuGame() {
               </div>
             </div>
           </div>
+
+          {/* Start Game Button (Requirement 3: Timer only begins upon clicking) */}
+          {!isPlaying && !isCompleted && !isTimeUp && (
+            <button
+              onClick={() => {
+                setIsPlaying(true);
+                setTimer(300);
+              }}
+              className="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-1.5 transition-all active:scale-95"
+            >
+              <Play className="w-4 h-4 fill-current" /> เริ่มเกม (Start Game)
+            </button>
+          )}
 
           {/* Number Pad 1-9 & Tools */}
           <div className="bg-[#0B192C]/80 p-5 rounded-2xl border border-white/10">

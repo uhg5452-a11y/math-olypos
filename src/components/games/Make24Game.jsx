@@ -26,7 +26,7 @@ export default function Make24Game() {
   const [solvedCount, setSolvedCount] = useState(0);
   // Competition Countdown Timer Mode (60s)
   const [timeLeft, setTimeLeft] = useState(60);
-  const [isTimerActive, setIsTimerActive] = useState(true);
+  const [isTimerActive, setIsTimerActive] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
 
   // Anti-exploit: prevent duplicate submission of the exact same puzzle
@@ -204,6 +204,29 @@ export default function Make24Game() {
         </div>
       </div>
 
+      {/* Start Game Ready Banner (Requirement 3: Timer does not start before Start Game) */}
+      {!isTimerActive && !gameEnded && (
+        <div className="mb-6 p-6 rounded-3xl bg-gradient-to-r from-emerald-500/20 via-[#008DDA]/20 to-teal-500/20 border border-emerald-500/40 text-center space-y-3 animate-fade-in">
+          <div className="text-xl font-black text-white flex items-center justify-center gap-2">
+            <Clock className="w-6 h-6 text-emerald-400" /> โหมดแข่งขันจับเวลา 60 วินาที
+          </div>
+          <p className="text-xs text-slate-300 max-w-md mx-auto">
+            เวลานับถอยหลังจะยังไม่เริ่มนับจนกว่าคุณจะกดปุ่ม "เริ่มเกม" ด้านล่างนี้ นำตัวเลข 4 ตัวมาผสมกันให้ได้ผลลัพธ์ 24 ให้ได้มากที่สุด
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsTimerActive(true);
+              setTimeLeft(60);
+              newPuzzle();
+            }}
+            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl inline-flex items-center gap-2 active:scale-95 transition-all"
+          >
+            <Play className="w-4 h-4 fill-current" /> เริ่มเกม (Start Game)
+          </button>
+        </div>
+      )}
+
       {/* Game Ended Overlay Banner */}
       {gameEnded && (
         <div className="mb-6 p-6 rounded-3xl bg-gradient-to-r from-amber-500/20 via-[#008DDA]/20 to-purple-500/20 border border-amber-500/40 text-center space-y-3 animate-fade-in">
@@ -231,7 +254,7 @@ export default function Make24Game() {
             return (
               <button
                 key={idx}
-                disabled={isUsed || gameEnded}
+                disabled={isUsed || gameEnded || !isTimerActive}
                 onClick={() => handleAddNumber(num, idx)}
                 className={`h-24 sm:h-28 rounded-2xl font-black text-3xl sm:text-4xl shadow-xl transition-all flex items-center justify-center select-none ${
                   isUsed
