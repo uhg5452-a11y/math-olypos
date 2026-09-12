@@ -3,6 +3,7 @@ import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Wif
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 import { realtimeService } from '../../services/realtimeService';
+import MatchResultModal from '../common/MatchResultModal';
 
 // Board size 8x8
 // 0: empty
@@ -120,8 +121,16 @@ export default function ThaiCheckersGame() {
       }
     });
 
+    const unsubControl = realtimeService.subscribe(roomId, 'match_control', (payload) => {
+      if (payload.action === 'cancel') {
+        alert('กรรมการได้ทำการยกเลิกหรือรีเซ็ตห้องแข่งขันนี้');
+        resetGame();
+      }
+    });
+
     return () => {
       unsub();
+      unsubControl();
       realtimeService.leaveRoom(roomId);
     };
   }, [gameMode, roomId, myPlayerRole]);
@@ -597,6 +606,22 @@ export default function ThaiCheckersGame() {
           </div>
         </div>
       </div>
+
+      {/* Match Result Summary Modal */}
+      <MatchResultModal
+        isOpen={winner !== null}
+        onClose={() => setWinner(null)}
+        onPlayAgain={resetGame}
+        result={winner === myPlayerRole ? 'win' : 'loss'}
+        winnerName={winner === 1 ? 'ฝ่ายฟ้า (Player 1)' : 'ฝ่ายแดง (Player 2 / Bot)'}
+        p1Name="ฝ่ายฟ้า (Player 1)"
+        p2Name="ฝ่ายแดง (Player 2 / Bot)"
+        p1Score={capturedByP1}
+        p2Score={capturedByP2}
+        gameTitle="หมากฮอสไทย (Thai Checkers)"
+        elapsedTime={`${Math.floor((600 - timeLeft) / 60)}:${((600 - timeLeft) % 60).toString().padStart(2, '0')} นาที`}
+        details={`ฝ่ายฟ้ากินได้ ${capturedByP1} เบี้ย | ฝ่ายแดงกินได้ ${capturedByP2} เบี้ย`}
+      />
     </div>
   );
 }

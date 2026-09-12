@@ -15,7 +15,7 @@ export const INITIAL_TOURNAMENTS = [
     endDate: new Date(Date.now() + 120 * 60 * 1000).toISOString(),
     registrationDeadline: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     maxParticipants: 48,
-    registeredStudents: ['STU-2026-001', 'STU-2026-002'],
+    registeredStudents: [],
     description: 'การแข่งขันวางสมการคณิตศาสตร์ชิงถ้วยเกียรติยศผู้อำนวยการโรงเรียนบรรหารแจ่มใสวิทยา 3 และคัดเลือกตัวแทนนักเรียนเข้าสู่ชุมนุมคณิตศาสตร์ แข่งขัน 3 กระดาน',
     rules: [
       'การแข่งขันสำหรับนักเรียนทุกคนในโรงเรียนบรรหารแจ่มใสวิทยา 3 (ม.1 - ม.6)',
@@ -24,35 +24,7 @@ export const INITIAL_TOURNAMENTS = [
       'หากวางสมการผิดหลักคณิตศาสตร์ หักคะแนน 10 แต้มและเสียตาเดิน'
     ],
     prizes: 'ถ้วยเกียรติยศผู้อำนวยการโรงเรียนบรรหารแจ่มใสวิทยา 3 + ทุนการศึกษาของโรงเรียน 5,000 บาท + เกียรติบัตร',
-    matches: [
-      {
-        matchId: 'M101',
-        tableNo: 1,
-        player1: { id: 'STU-2026-001', name: 'วรเมธ ปัญญาวงศ์ (ม.5/1)', score: 385 },
-        player2: { id: 'STU-2026-002', name: 'กานต์รวี เจริญศิลป์ (ม.6/2)', score: 412 },
-        winner: 'STU-2026-002',
-        status: 'finished',
-        roomStatus: 'closed'
-      },
-      {
-        matchId: 'M102',
-        tableNo: 2,
-        player1: { id: 'STU-2026-003', name: 'ภูริณัฐ ธนกิจโกศล (ม.4/5)', score: 290 },
-        player2: { id: 'STU-2026-004', name: 'ชลิตา วัฒนกุล (ม.5/3)', score: 310 },
-        winner: 'STU-2026-004',
-        status: 'finished',
-        roomStatus: 'closed'
-      },
-      {
-        matchId: 'M103',
-        tableNo: 3,
-        player1: { id: 'STU-2026-001', name: 'วรเมธ ปัญญาวงศ์ (ม.5/1)', score: null },
-        player2: { id: 'STU-2026-003', name: 'ภูริณัฐ ธนกิจโกศล (ม.4/5)', score: null },
-        winner: null,
-        status: 'upcoming',
-        roomStatus: 'ready'
-      }
-    ]
+    matches: []
   },
   {
     id: 'tourney-2',
@@ -68,7 +40,7 @@ export const INITIAL_TOURNAMENTS = [
     endDate: new Date(Date.now() + 105 * 60 * 1000).toISOString(),
     registrationDeadline: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
     maxParticipants: 32,
-    registeredStudents: ['STU-2026-001'],
+    registeredStudents: [],
     description: 'การแข่งขันแก้ปริศนาซูโดกุระดับตัวแทนห้องเรียน แข่งขันความเร็วและความแม่นยำเพื่อชิงตำแหน่งแชมป์ตรรกะประจำโรงเรียนบรรหารแจ่มใสวิทยา 3',
     rules: [
       'การแข่งขันสำหรับนักเรียนทุกคนในโรงเรียนบรรหารแจ่มใสวิทยา 3',
@@ -76,17 +48,7 @@ export const INITIAL_TOURNAMENTS = [
       'จับเวลา 15 นาทีต่อตาราง ทำผิดเกิน 3 ครั้งปรับแพ้ในกระดานนั้น'
     ],
     prizes: 'เหรียญทองเกียรติยศโรงเรียนบรรหารแจ่มใสวิทยา 3 + เกียรติบัตรเรียนดีกลุ่มสาระคณิตศาสตร์',
-    matches: [
-      {
-        matchId: 'M201',
-        tableNo: 1,
-        player1: { id: 'STU-2026-001', name: 'วรเมธ ปัญญาวงศ์ (ม.5/1)', score: 980 },
-        player2: { id: 'STU-2026-005', name: 'ณภัทร สิริโชค (ม.3/1)', score: 850 },
-        winner: 'STU-2026-001',
-        status: 'finished',
-        roomStatus: 'closed'
-      }
-    ]
+    matches: []
   },
   {
     id: 'tourney-3',
@@ -102,7 +64,7 @@ export const INITIAL_TOURNAMENTS = [
     endDate: new Date(Date.now() + 300 * 60 * 1000).toISOString(),
     registrationDeadline: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
     maxParticipants: 16,
-    registeredStudents: ['STU-2026-002', 'STU-2026-003'],
+    registeredStudents: [],
     description: 'สุดยอดการประลองกลยุทธ์กระดาน 8x8 กติกาหมากฮอสไทยแท้ (เบี้ยเดินหน้าอย่างเดียว / ฮอสเดินและกินยาวทางไกล ซิงค์ 2 เครื่องสด)',
     rules: [
       'กติกาหมากฮอสไทย: ตัวหมากปกติห้ามเดินและห้ามกินถอยหลัง, ตัวฮอสเดินและกินยาวทางไกลได้',
@@ -125,33 +87,14 @@ export const INITIAL_TOURNAMENTS = [
     endDate: new Date(Date.now() + 50 * 60 * 1000).toISOString(),
     registrationDeadline: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
     maxParticipants: 60,
-    registeredStudents: ['STU-2026-001', 'STU-2026-002', 'STU-2026-003'],
-    description: 'การแข่งขันสปีดแมทโจทย์สด 40 ข้อ เปิดระบบรับชมการแข่งขันสด (Spectator Mode) และจอแสดงผลกลาง (Arena Display) ให้นักเรียนทั้งโรงเรียนร่วมเชียร์',
+    registeredStudents: [],
+    description: 'การแข่งขันสปีดแมทโจทย์สด 40 ข้อ ซิงค์คะแนนเรียลไทม์ ให้นักเรียนทั้งโรงเรียนร่วมแข่งขัน',
     rules: [
       'โจทย์ 40 ข้อต่อเนื่อง จับเวลารวม 60 วินาที',
       'ระบบคอมโบ Streak คูณคะแนนต่อเนื่อง ซิงค์คะแนนเรียลไทม์'
     ],
     prizes: 'เหรียญทองคิดเลขเร็วโรงเรียนบรรหารแจ่มใสวิทยา 3 + สิทธิ์เป็นตัวแทนโรงเรียน',
-    matches: [
-      {
-        matchId: 'M401',
-        tableNo: 1,
-        player1: { id: 'STU-2026-001', name: 'วรเมธ ปัญญาวงศ์ (ม.5/1)', score: 280 },
-        player2: { id: 'STU-2026-002', name: 'กานต์รวี เจริญศิลป์ (ม.6/2)', score: 310 },
-        winner: null,
-        status: 'live',
-        roomStatus: 'live'
-      },
-      {
-        matchId: 'M402',
-        tableNo: 2,
-        player1: { id: 'STU-2026-003', name: 'ภูริณัฐ ธนกิจโกศล (ม.4/5)', score: 190 },
-        player2: { id: 'STU-2026-004', name: 'ชลิตา วัฒนกุล (ม.5/3)', score: 205 },
-        winner: null,
-        status: 'live',
-        roomStatus: 'live'
-      }
-    ]
+    matches: []
   },
   {
     id: 'tourney-5',
@@ -190,7 +133,7 @@ export const INITIAL_TOURNAMENTS = [
     endDate: new Date(Date.now() + 720 * 60 * 1000).toISOString(),
     registrationDeadline: new Date(Date.now() + 540 * 60 * 1000).toISOString(),
     maxParticipants: 30,
-    registeredStudents: ['STU-2026-002'],
+    registeredStudents: [],
     description: 'ตัวเลขแฟลชกะพริบกลางอากาศ 0.5 วินาที รวมผลลัพธ์ในใจอย่างแม่นยำ',
     rules: [
       'ห้ามใช้กระดาษทด คำนวณในใจเท่านั้น',

@@ -29,121 +29,38 @@ export const ADMIN_ACCOUNTS = [
   }
 ];
 
-// Student Database supporting all students in โรงเรียนบรรหารแจ่มใสวิทยา 3 with individual unique Private PINs
-export const INITIAL_STUDENTS = [
+// Teacher / Arbiter Whitelist for โรงเรียนบรรหารแจ่มใสวิทยา 3
+export const TEACHER_WHITELIST = [
+  'teacher.math@banharn3.ac.th',
+  'arbiter@banharn3.ac.th',
+  'math.supervisor@banharn3.ac.th'
+];
+
+export const INITIAL_TEACHERS = [
   {
-    id: 'student_1',
-    studentId: 'STU-2026-001',
-    privatePin: '1478', // Unique private PIN for student 1
-    name: 'วรเมธ ปัญญาวงศ์',
+    id: 'teacher_1',
+    email: 'teacher.math@banharn3.ac.th',
+    password: 'teacher2026',
+    name: 'ครูกลุ่มสาระฯ คณิตศาสตร์',
+    role: 'teacher',
+    avatar: '👨‍🏫',
     school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
-    grade: 'มัธยมศึกษาปีที่ 5/1',
-    role: 'student',
-    elo: 1850,
-    avatar: '🧑‍🎓',
-    registeredTournaments: ['tourney-1', 'tourney-2'],
-    stats: {
-      mathElo: 1850,
-      totalMatches: 42,
-      wins: 31,
-      draws: 4,
-      losses: 7,
-      goldMedals: 3,
-      silverMedals: 2,
-      bronzeMedals: 1,
-      practiceCompleted: 156
-    }
+    badge: 'Teacher Supervisor & Match Arbiter'
   },
   {
-    id: 'student_2',
-    studentId: 'STU-2026-002',
-    privatePin: '2580', // Unique private PIN for student 2
-    name: 'กานต์รวี เจริญศิลป์',
+    id: 'teacher_2',
+    email: 'arbiter@banharn3.ac.th',
+    password: 'arbiter2026',
+    name: 'คณะกรรมการผู้ตัดสินกลาง',
+    role: 'teacher',
+    avatar: '👩‍🏫',
     school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
-    grade: 'มัธยมศึกษาปีที่ 6/2',
-    role: 'student',
-    elo: 1920,
-    avatar: '👩‍🎓',
-    registeredTournaments: ['tourney-1'],
-    stats: {
-      mathElo: 1920,
-      totalMatches: 58,
-      wins: 48,
-      draws: 3,
-      losses: 7,
-      goldMedals: 5,
-      silverMedals: 1,
-      bronzeMedals: 0,
-      practiceCompleted: 230
-    }
-  },
-  {
-    id: 'student_3',
-    studentId: 'STU-2026-003',
-    privatePin: '3691', // Unique private PIN for student 3
-    name: 'ภูริณัฐ ธนกิจโกศล',
-    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
-    grade: 'มัธยมศึกษาปีที่ 4/5',
-    role: 'student',
-    elo: 1710,
-    avatar: '🧑‍🎓',
-    registeredTournaments: [],
-    stats: {
-      mathElo: 1710,
-      totalMatches: 25,
-      wins: 16,
-      draws: 2,
-      losses: 7,
-      goldMedals: 1,
-      silverMedals: 3,
-      bronzeMedals: 2,
-      practiceCompleted: 88
-    }
-  },
-  {
-    id: 'student_4',
-    studentId: 'STU-2026-004',
-    privatePin: '4826', // Unique private PIN for student 4
-    name: 'ชลิตา วัฒนกุล',
-    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
-    grade: 'มัธยมศึกษาปีที่ 5/3',
-    role: 'student',
-    elo: 1680,
-    avatar: '👩‍🎓',
-    registeredTournaments: ['tourney-1'],
-    stats: {
-      mathElo: 1680,
-      totalMatches: 22,
-      wins: 14,
-      draws: 5,
-      losses: 3,
-      goldMedals: 2,
-      silverMedals: 1,
-      bronzeMedals: 1,
-      practiceCompleted: 64
-    }
-  },
-  {
-    id: 'student_5',
-    studentId: 'STU-2026-005',
-    privatePin: '5937', // Unique private PIN for student 5
-    name: 'ณภัทร สิริโชค',
-    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
-    grade: 'มัธยมศึกษาปีที่ 3/1',
-    role: 'student',
-    elo: 1620,
-    avatar: '🧑‍🎓',
-    registeredTournaments: [],
-    stats: {
-      mathElo: 1620,
-      totalMatches: 19,
-      wins: 12,
-      draws: 3,
-      losses: 4,
-      goldMedals: 1,
-      silverMedals: 2,
-      bronzeMedals: 0,
-      practiceCompleted: 52
-    }
+    badge: 'Chief Arbiter'
   }
 ];
+
+// Student Database for โรงเรียนบรรหารแจ่มใสวิทยา 3
+// Populated ONLY by real students who register their student ID and private PIN in the school system
+export const INITIAL_STUDENTS = [];
+
+

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Trophy, Calendar, Gamepad2, Award, Shield, User, LogOut, LogIn } from 'lucide-react';
+import { Trophy, Calendar, Gamepad2, Award, Shield, User, LogOut, LogIn, GraduationCap } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import LogoutModal from '../auth/LogoutModal';
 
 export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
-  const { currentUser, isAdmin, isStudent, logout } = useAuth();
+  const { currentUser, isAdmin, isTeacher, isStudent, logout } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   return (
@@ -93,6 +93,20 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
                 </button>
               )}
 
+              {/* Teacher / Arbiter Dashboard Tab */}
+              {isTeacher && (
+                <button
+                  onClick={() => setCurrentView('teacher')}
+                  className={`px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
+                    currentView === 'teacher'
+                      ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50'
+                      : 'text-emerald-400/80 hover:text-emerald-300 hover:bg-emerald-500/10'
+                  }`}
+                >
+                  <GraduationCap className="w-4 h-4 text-emerald-400" /> ครู/กรรมการ
+                </button>
+              )}
+
               {/* Admin Dashboard Tab (Protected) */}
               {isAdmin && (
                 <button
@@ -113,16 +127,16 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               {currentUser ? (
                 <div className="flex items-center gap-2">
                   <div
-                    onClick={() => isStudent ? setCurrentView('my-registrations') : setCurrentView('admin')}
+                    onClick={() => isStudent ? setCurrentView('my-registrations') : isTeacher ? setCurrentView('teacher') : setCurrentView('admin')}
                     className="flex items-center gap-2 p-1.5 pl-2 rounded-xl bg-[#1E3E62]/80 border border-white/10 hover:border-[#008DDA]/40 cursor-pointer transition-all"
                   >
-                    <span className="text-lg">{currentUser.avatar || (isAdmin ? '👨‍🏫' : '🧑‍🎓')}</span>
+                    <span className="text-lg">{currentUser.avatar || (isAdmin ? '👨‍🏫' : isTeacher ? '🧑‍🏫' : '🧑‍🎓')}</span>
                     <div className="text-left hidden lg:block pr-1">
                       <div className="text-xs font-bold text-white leading-tight">
                         {currentUser.name}
                       </div>
                       <div className="text-[10px] text-[#008DDA] font-mono leading-tight">
-                        {isAdmin ? `Admin (${currentUser.badge})` : currentUser.studentId}
+                        {isAdmin ? `Admin (${currentUser.badge})` : isTeacher ? `ครู/กรรมการ (${currentUser.badge || 'Staff'})` : currentUser.studentId}
                       </div>
                     </div>
                   </div>
@@ -181,6 +195,16 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
           >
             <Award className="w-4 h-4" /> อันดับ
           </button>
+          {isTeacher && (
+            <button
+              onClick={() => setCurrentView('teacher')}
+              className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
+                currentView === 'teacher' ? 'text-emerald-400' : 'text-slate-400'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" /> ครู/กรรมการ
+            </button>
+          )}
           {isAdmin && (
             <button
               onClick={() => setCurrentView('admin')}

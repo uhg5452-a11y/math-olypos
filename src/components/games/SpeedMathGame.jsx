@@ -14,6 +14,7 @@ export default function SpeedMathGame() {
   const [streak, setStreak] = useState(0);
   const [highestStreak, setHighestStreak] = useState(0);
   const [feedback, setFeedback] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Generate random problem suitable for math competition
   const generateProblem = () => {
@@ -72,7 +73,8 @@ export default function SpeedMathGame() {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!isPlaying || !currentProblem) return;
+    if (isSubmitting || !isPlaying || !currentProblem || !userAnswer.trim()) return;
+    setIsSubmitting(true);
 
     const parsed = parseInt(userAnswer.trim(), 10);
     if (parsed === currentProblem.answer) {
@@ -91,6 +93,7 @@ export default function SpeedMathGame() {
 
     setUserAnswer('');
     setCurrentProblem(generateProblem());
+    setTimeout(() => setIsSubmitting(false), 200);
 
     setTimeout(() => {
       setFeedback(null);
@@ -189,7 +192,8 @@ export default function SpeedMathGame() {
               />
               <button
                 type="submit"
-                className="px-6 py-4 rounded-2xl bg-gradient-to-r from-[#008DDA] to-blue-600 text-white font-bold text-sm shadow-lg shadow-blue-500/30 active:scale-95 transition-all"
+                disabled={!userAnswer.trim() || isSubmitting}
+                className="px-6 py-4 rounded-2xl bg-gradient-to-r from-[#008DDA] to-blue-600 disabled:opacity-40 text-white font-bold text-sm shadow-lg shadow-blue-500/30 active:scale-95 transition-all"
               >
                 ส่ง
               </button>

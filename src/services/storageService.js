@@ -1,13 +1,28 @@
 import { INITIAL_TOURNAMENTS } from '../data/defaultTournaments';
 import { INITIAL_LEADERBOARD } from '../data/defaultLeaderboard';
-import { INITIAL_STUDENTS, ADMIN_ACCOUNTS } from '../data/mockUsers';
+import { INITIAL_STUDENTS, INITIAL_TEACHERS, ADMIN_ACCOUNTS } from '../data/mockUsers';
 
 const STORAGE_KEYS = {
   USERS: 'math_olympiad_users',
+  TEACHERS: 'math_olympiad_teachers',
   TOURNAMENTS: 'math_olympiad_tournaments',
   LEADERBOARD: 'math_olympiad_leaderboard',
   CURRENT_USER: 'math_olympiad_current_user',
+  ANNOUNCEMENTS: 'math_olympiad_announcements',
   SETTINGS: 'math_olympiad_settings'
+};
+
+// Helper to filter out legacy mock/fake student names and IDs
+const isMockStudent = (item) => {
+  if (!item) return false;
+  const id = item.id || '';
+  const stuId = item.studentId || '';
+  const name = item.name || '';
+  return (
+    id.startsWith('student_') && id.length < 12 || // student_1 .. student_5
+    stuId.startsWith('STU-2026-00') ||
+    ['วรเมธ', 'กานต์รวี', 'ภูริณัฐ', 'ชลิตา', 'ณภัทร', 'อภิชญา', 'ธีรภัทร์'].some(n => name.includes(n))
+  );
 };
 
 export const storageService = {
@@ -15,7 +30,13 @@ export const storageService = {
   getTournaments: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.TOURNAMENTS);
-      return data ? JSON.parse(data) : INITIAL_TOURNAMENTS;
+      const list = data ? JSON.parse(data) : INITIAL_TOURNAMENTS;
+      // Clean mock registered students
+      return list.map(t => ({
+        ...t,
+        registeredStudents: (t.registeredStudents || []).filter(sid => !sid.startsWith('STU-2026-00')),
+        matches: (t.matches || []).filter(m => !isMockStudent(m.player1) && !isMockStudent(m.player2))
+      }));
     } catch {
       return INITIAL_TOURNAMENTS;
     }
@@ -29,42 +50,85 @@ export const storageService = {
   getLeaderboard: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.LEADERBOARD);
-      return data ? JSON.parse(data) : INITIAL_LEADERBOARD;
+      const list = data ? JSON.parse(data) : INITIAL_LEADERBOARD;
+      const cleaned = (list || []).filter(item => !isMockStudent(item));
+      return cleaned;
     } catch {
       return INITIAL_LEADERBOARD;
     }
   },
 
   saveLeaderboard: (leaderboard) => {
-    localStorage.setItem(STORAGE_KEYS.LEADERBOARD, JSON.stringify(leaderboard));
+    const cleaned = (leaderboard || []).filter(item => !isMockStudent(item));
+    localStorage.setItem(STORAGE_KEYS.LEADERBOARD, JSON.stringify(cleaned));
   },
 
-  // Users
+  // Users (Only real students from โรงเรียนบรรหารแจ่มใสวิทยา 3)
   getStudents: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.USERS);
-      return data ? JSON.parse(data) : INITIAL_STUDENTS;
+      const list = data ? JSON.parse(data) : INITIAL_STUDENTS;
+      const cleaned = (list || []).filter(s => !isMockStudent(s));
+      if (data && cleaned.length !== list.length) {
+        localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleaned));
+      }
+      return cleaned;
     } catch {
-      return INITIAL_STUDENTS;
+      return [];
     }
   },
 
   saveStudents: (students) => {
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(students));
+    const cleaned = (students || []).filter(s => !isMockStudent(s));
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleaned));
   },
 
-  // Session
+  // Teachers (Approved by Admin & Whitelist)
+  getTeachers: () => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.TEACHERS);
+      return data ? JSON.parse(data) : INITIAL_TEACHERS;
+    } catch {
+      return INITIAL_TEACHERS;
+    }
+  },
+
+  saveTeachers: (teachers) => {
+    localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(teachers));
+  },
+
+  // Real-time Announcements from Teachers / Arbiter
+  getAnnouncements: () => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEYS.ANNOUNCEMENTS);
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  },
+
+  saveAnnouncements: (list) => {
+    localStorage.setItem(STORAGE_KEYS.ANNOUNCEMENTS, JSON.stringify(list));
+  },
+
+  // Session: Default to null (NO auto-login as fake student)
   getCurrentUser: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      return data ? JSON.parse(data) : INITIAL_STUDENTS[0]; // Default to student 1 for quick demo
+      if (!data) return null;
+      const user = JSON.parse(data);
+      if (isMockStudent(user)) {
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+        return null;
+      }
+      return user;
     } catch {
-      return INITIAL_STUDENTS[0];
+      return null;
     }
   },
 
   saveCurrentUser: (user) => {
-    if (!user) {
+    if (!user || isMockStudent(user)) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     } else {
       localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
@@ -79,9 +143,9 @@ export const storageService = {
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     return {
       tournaments: INITIAL_TOURNAMENTS,
-      leaderboard: INITIAL_LEADERBOARD,
-      students: INITIAL_STUDENTS,
-      currentUser: INITIAL_STUDENTS[0]
+      leaderboard: [],
+      students: [],
+      currentUser: null
     };
   }
 };

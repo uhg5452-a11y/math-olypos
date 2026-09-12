@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { ADMIN_ACCOUNTS, ADMIN_WHITELIST, INITIAL_STUDENTS } from '../data/mockUsers';
+import { ADMIN_ACCOUNTS, ADMIN_WHITELIST, TEACHER_WHITELIST, INITIAL_TEACHERS, INITIAL_STUDENTS } from '../data/mockUsers';
 import { storageService } from '../services/storageService';
 import { realtimeService } from '../services/realtimeService';
 
@@ -8,6 +8,9 @@ const AuthContext = createContext();
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => storageService.getCurrentUser());
   const [students, setStudents] = useState(() => storageService.getStudents());
+  const [teachers, setTeachers] = useState(() => storageService.getTeachers());
+  const [announcements, setAnnouncements] = useState(() => storageService.getAnnouncements());
+  const [liveAnnouncement, setLiveAnnouncement] = useState(null);
   const [authError, setAuthError] = useState(null);
 
   useEffect(() => {
@@ -18,9 +21,17 @@ export function AuthProvider({ children }) {
     storageService.saveStudents(students);
   }, [students]);
 
-  // Real-time student sync across tabs/devices (Requirement 3)
   useEffect(() => {
-    const unsub = realtimeService.subscribe('system_sync', 'student_updated', (payload) => {
+    storageService.saveTeachers(teachers);
+  }, [teachers]);
+
+  useEffect(() => {
+    storageService.saveAnnouncements(announcements);
+  }, [announcements]);
+
+  // Real-time student sync across tabs/devices (Requirement 2 & 3)
+  useEffect(() => {
+    const unsubStudent = realtimeService.subscribe('system_sync', 'student_updated', (payload) => {
       if (payload?.student) {
         setStudents(prev => {
           const exists = prev.some(s => s.id === payload.student.id || s.studentId === payload.student.studentId);
@@ -32,7 +43,22 @@ export function AuthProvider({ children }) {
       }
     });
 
-    return () => unsub();
+    // Real-time Announcements from Teachers / Arbiters
+    const unsubAnnounce = realtimeService.subscribe('system_broadcast', 'announcement', (payload) => {
+      if (payload) {
+        setAnnouncements(prev => [payload, ...prev.slice(0, 19)]);
+        setLiveAnnouncement(payload);
+        // Clear live popup after 8 seconds
+        setTimeout(() => {
+          setLiveAnnouncement(null);
+        }, 8000);
+      }
+    });
+
+    return () => {
+      unsubStudent();
+      unsubAnnounce();
+    };
   }, []);
 
   // Login for Students with Student ID + Individual Private PIN
@@ -55,7 +81,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Register New School Student with their own unique Private PIN (Requirement 3: Live Sync)
+  // Register New School Student with their own unique Private PIN
   const registerStudent = (studentData) => {
     setAuthError(null);
     const cleanId = studentData.studentId.trim().toUpperCase();
@@ -103,12 +129,41 @@ export function AuthProvider({ children }) {
     return { success: true, user: newStudent };
   };
 
+  // Login for Teachers / Arbiters (Strict Whitelist from โรงเรียนบรรหารแจ่มใสวิทยา 3)
+  const loginTeacher = (email, password) => {
+    setAuthError(null);
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Whitelist check
+    const isWhitelisted = TEACHER_WHITELIST.some(w => w.toLowerCase() === cleanEmail) ||
+      teachers.some(t => t.email.toLowerCase() === cleanEmail);
+
+    if (!isWhitelisted) {
+      const errorMsg = 'การเข้าถึงถูกปฏิเสธ: บัญชีอีเมลนี้ไม่อยู่ในฐานข้อมูลครูกลุ่มสาระฯ หรือกรรมการที่ได้รับอนุมัติ (ห้ามบุคคลภายนอกหรือนักเรียนแอบอ้าง)';
+      setAuthError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+
+    const teacher = teachers.find(
+      t => t.email.toLowerCase() === cleanEmail && t.password === password
+    );
+
+    if (teacher) {
+      setCurrentUser(teacher);
+      return { success: true, user: teacher };
+    } else {
+      const errorMsg = 'รหัสผ่านครูผู้ดูแล / กรรมการไม่ถูกต้อง';
+      setAuthError(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  };
+
   // Login for Admins (Strict Whitelist of the 2 creator accounts)
   const loginAdmin = (email, password) => {
     setAuthError(null);
     const cleanEmail = email.trim().toLowerCase();
 
-    // Check strict whitelist (Requirement 5)
+    // Check strict whitelist
     if (!ADMIN_WHITELIST.includes(cleanEmail)) {
       const errorMsg = 'การเข้าถึงถูกปฏิเสธ: อีเมลนี้ไม่ได้รับอนุญาตในระบบ Whitelist แอดมิน (จำกัดเฉพาะ 2 บัญชีผู้สร้างเท่านั้น)';
       setAuthError(errorMsg);
@@ -129,6 +184,24 @@ export function AuthProvider({ children }) {
     }
   };
 
+  // Teacher / Admin broadcast announcement
+  const sendTeacherAnnouncement = (title, message, urgency = 'normal') => {
+    const item = {
+      id: 'ann_' + Date.now(),
+      title,
+      message,
+      urgency, // 'normal', 'urgent'
+      sender: currentUser?.name || 'ครูผู้ดูแลการแข่งขัน',
+      school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
+      timestamp: new Date().toISOString()
+    };
+
+    setAnnouncements(prev => [item, ...prev]);
+    setLiveAnnouncement(item);
+    realtimeService.sendEvent('system_broadcast', 'announcement', item);
+    return item;
+  };
+
   const logout = () => {
     setCurrentUser(null);
     setAuthError(null);
@@ -143,8 +216,9 @@ export function AuthProvider({ children }) {
     realtimeService.sendEvent('system_sync', 'student_updated', { student: updatedStudent });
   };
 
-  // Strict RBAC: only creator emails can ever be admin
+  // Strict RBAC
   const isAdmin = currentUser?.role === 'admin' && ADMIN_WHITELIST.includes(currentUser?.email?.toLowerCase());
+  const isTeacher = currentUser?.role === 'teacher';
   const isStudent = currentUser?.role === 'student';
 
   return (
@@ -152,16 +226,24 @@ export function AuthProvider({ children }) {
       value={{
         currentUser,
         isAdmin,
+        isTeacher,
         isStudent,
         loginStudent,
         registerStudent,
+        loginTeacher,
         loginAdmin,
         logout,
         updateStudentData,
+        sendTeacherAnnouncement,
+        announcements,
+        liveAnnouncement,
+        setLiveAnnouncement,
         authError,
         setAuthError,
         adminAccounts: ADMIN_ACCOUNTS,
         adminWhitelist: ADMIN_WHITELIST,
+        teacherWhitelist: TEACHER_WHITELIST,
+        teachers,
         students
       }}
     >

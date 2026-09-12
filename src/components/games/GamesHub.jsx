@@ -8,16 +8,26 @@ import Make24Game from './Make24Game';
 import FlashAnzanGame from './FlashAnzanGame';
 
 export default function GamesHub() {
-  const [activeGame, setActiveGame] = useState(null);
+  const [activeGame, setActiveGame] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    const g = params.get('game');
+    const r = params.get('room');
+    if (g) return g;
+    if (r) {
+      if (r.toUpperCase().startsWith('AM')) return 'a-math';
+      return 'checkers';
+    }
+    return null;
+  });
 
   const games = [
     {
       id: 'a-math',
-      title: 'เอแมท (A-Math)',
-      subtitle: 'สมการอักษรไขว้',
-      description: 'วางเบี้ยตัวเลขและเครื่องหมายลงบนกระดาน 7x7 เพื่อสร้างสมการที่ถูกต้องทั้งแนวตั้งและแนวนอน พร้อมช่องคะแนนพิเศษ',
+      title: 'เอแมท (Standard 15x15 A-Math)',
+      subtitle: 'สมการอักษรไขว้มาตรฐาน 2 ผู้เล่น',
+      description: 'วางเบี้ยตัวเลขและเครื่องหมายลงบนกระดาน 15x15 เพื่อสร้างสมการที่ถูกต้องทั้งแนวตั้งและแนวนอน พร้อมช่องคะแนนพิเศษ 3E, 2E, 3P, 2P และดาวกึ่งกลาง ★',
       icon: '🔤',
-      badge: 'Logic & Equations',
+      badge: '15x15 Standard Competition',
       component: <AMathGame />
     },
     {

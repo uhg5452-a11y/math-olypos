@@ -45,9 +45,20 @@ export default function LeaderboardView() {
         </div>
       </div>
 
-      {/* TOP 3 PODIUM DESIGN (Requirement 4: Rank 1 in Center) */}
-      <div className="relative pt-6 pb-2">
-        <div className="flex flex-col md:flex-row items-end justify-center gap-4 lg:gap-6 max-w-4xl mx-auto">
+      {/* Empty State when no students have ranked yet */}
+      {leaderboard.length === 0 ? (
+        <div className="text-center py-16 bg-[#1E3E62]/30 rounded-3xl border border-dashed border-white/10 p-8 animate-fade-in">
+          <Trophy className="w-12 h-12 text-amber-400 mx-auto mb-3 opacity-60" />
+          <h3 className="text-lg font-bold text-white">ยังไม่มีรายชื่อนักเรียนบนทำเนียบอันดับ</h3>
+          <p className="text-slate-400 text-xs mt-1 max-w-md mx-auto">
+            ระบบเปิดสำหรับนักเรียนโรงเรียนบรรหารแจ่มใสวิทยา 3 ทุกคน ลงทะเบียนและเข้าร่วมการแข่งขันหรือฝึกซ้อมเพื่อสะสมคะแนนและขึ้นสู่แท่นเกียรติยศ
+          </p>
+        </div>
+      ) : (
+        <>
+          {/* TOP 3 PODIUM DESIGN (Requirement 4: Rank 1 in Center) */}
+          <div className="relative pt-6 pb-2">
+            <div className="flex flex-col md:flex-row items-end justify-center gap-4 lg:gap-6 max-w-4xl mx-auto">
           
           {/* PODIUM 2: RANK 2 (SILVER) - LEFT */}
           {top2 && (
@@ -241,6 +252,8 @@ export default function LeaderboardView() {
           </table>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

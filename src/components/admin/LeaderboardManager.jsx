@@ -194,7 +194,7 @@ export default function LeaderboardManager() {
                   value={newEntry.studentId}
                   onChange={(e) => setNewEntry({ ...newEntry, studentId: e.target.value.toUpperCase() })}
                   className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white font-mono"
-                  placeholder="STU-2026-008"
+                  placeholder="เช่น 45123"
                 />
               </div>
 
