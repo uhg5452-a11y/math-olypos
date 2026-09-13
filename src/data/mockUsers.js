@@ -31,6 +31,7 @@ export const ADMIN_ACCOUNTS = [
 
 // Teacher / Arbiter Whitelist for โรงเรียนบรรหารแจ่มใสวิทยา 3
 export const TEACHER_WHITELIST = [
+  'teacher.math@banhan3.ac.th',
   'teacher.math@banharn3.ac.th',
   'arbiter@banharn3.ac.th',
   'math.supervisor@banharn3.ac.th'
@@ -39,9 +40,19 @@ export const TEACHER_WHITELIST = [
 export const INITIAL_TEACHERS = [
   {
     id: 'teacher_1',
-    email: 'teacher.math@banharn3.ac.th',
-    password: 'teacher2026',
+    email: 'teacher.math@banhan3.ac.th',
+    password: 'teacher math',
     name: 'ครูกลุ่มสาระฯ คณิตศาสตร์',
+    role: 'teacher',
+    avatar: '👨‍🏫',
+    school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
+    badge: 'Teacher Supervisor & Match Arbiter'
+  },
+  {
+    id: 'teacher_1_alias',
+    email: 'teacher.math@banharn3.ac.th',
+    password: 'teacher math',
+    name: 'ครูกลุ่มสาระฯ คณิตศาสตร์ (สำรอง)',
     role: 'teacher',
     avatar: '👨‍🏫',
     school: 'โรงเรียนบรรหารแจ่มใสวิทยา 3',
@@ -50,7 +61,7 @@ export const INITIAL_TEACHERS = [
   {
     id: 'teacher_2',
     email: 'arbiter@banharn3.ac.th',
-    password: 'arbiter2026',
+    password: 'teacher math',
     name: 'คณะกรรมการผู้ตัดสินกลาง',
     role: 'teacher',
     avatar: '👩‍🏫',
@@ -60,7 +71,5 @@ export const INITIAL_TEACHERS = [
 ];
 
 // Student Database for โรงเรียนบรรหารแจ่มใสวิทยา 3
-// Populated ONLY by real students who register their student ID and private PIN in the school system
+// Populated by real students who register their student ID and private PIN in the school system
 export const INITIAL_STUDENTS = [];
-
-

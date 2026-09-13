@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Zap, Clock, Trophy, Flame, Play, RotateCcw, Sparkles } from 'lucide-react';
+import { Zap, Clock, Trophy, Flame, Play, RotateCcw, Sparkles, ArrowLeft, Sliders } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 
 export default function SpeedMathGame() {
   const { recordGameResult } = useGame();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(30); // 30 or 60 seconds
+  const [duration, setDuration] = useState(30); // 15, 30, 60, 120 or custom
+  const [customInputVal, setCustomInputVal] = useState('45');
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [timeLeft, setTimeLeft] = useState(30);
   const [currentProblem, setCurrentProblem] = useState(null);
   const [userAnswer, setUserAnswer] = useState('');
@@ -52,6 +54,29 @@ export default function SpeedMathGame() {
     setHighestStreak(0);
     setUserAnswer('');
     setCurrentProblem(generateProblem());
+  };
+
+  const handleSetPresetDuration = (s) => {
+    setDuration(s);
+    setShowCustomInput(false);
+    setTimeLeft(s);
+  };
+
+  const handleApplyCustomDuration = (e) => {
+    e.preventDefault();
+    const val = parseInt(customInputVal, 10);
+    if (!isNaN(val) && val >= 5 && val <= 600) {
+      setDuration(val);
+      setTimeLeft(val);
+      setShowCustomInput(false);
+    }
+  };
+
+  const handleExitGame = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    window.history.pushState({}, '', url.pathname);
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game: null } }));
   };
 
   // Timer
@@ -104,43 +129,78 @@ export default function SpeedMathGame() {
     <div className="bg-[#1E3E62]/40 rounded-3xl p-6 sm:p-8 border border-white/10 backdrop-blur-md animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10 mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
-              มินิเกมที่ 4
-            </span>
-            <span className="text-xs text-slate-400">ประลองความเร็ว 24 ชม.</span>
+        <div className="flex items-start sm:items-center gap-3">
+          <button
+            onClick={handleExitGame}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
+            title="ออกจากเกม / กลับศูนย์รวมเกม"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">กลับศูนย์รวมเกม</span>
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
+                มินิเกมที่ 4
+              </span>
+              <span className="text-xs text-slate-400">ประลองความเร็ว 24 ชม. • กำหนดเวลาเองได้</span>
+            </div>
+            <h2 className="text-2xl font-black text-white mt-1 flex items-center gap-2">
+              คิดเลขเร็ว (Speed Math) <Zap className="w-6 h-6 text-amber-400" />
+            </h2>
+            <p className="text-xs text-slate-300 mt-0.5">
+              คำนวณและตอบโจทย์คณิตศาสตร์ให้ไวที่สุด ยิ่งตอบถูกต่อเนื่องคอมโบยิ่งพุ่งสูง!
+            </p>
           </div>
-          <h2 className="text-2xl font-black text-white mt-1 flex items-center gap-2">
-            คิดเลขเร็ว (Speed Math) <Zap className="w-6 h-6 text-amber-400" />
-          </h2>
-          <p className="text-xs text-slate-300 mt-0.5">
-            คำนวณและตอบโจทย์คณิตศาสตร์ให้ไวที่สุด ยิ่งตอบถูกต่อเนื่องคอมโบยิ่งพุ่งสูง!
-          </p>
         </div>
 
         {/* Duration selector */}
         {!isPlaying && (
-          <div className="flex items-center gap-2 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
+          <div className="flex flex-wrap items-center gap-1.5 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
+            {[15, 30, 60, 120].map(s => (
+              <button
+                key={s}
+                onClick={() => handleSetPresetDuration(s)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  duration === s && !showCustomInput ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                {s} วินาที
+              </button>
+            ))}
             <button
-              onClick={() => setDuration(30)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                duration === 30 ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400'
+              onClick={() => setShowCustomInput(p => !p)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                showCustomInput ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
             >
-              30 วินาที
-            </button>
-            <button
-              onClick={() => setDuration(60)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                duration === 60 ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400'
-              }`}
-            >
-              60 วินาที
+              <Sliders className="w-3 h-3" /> กำหนดเอง
             </button>
           </div>
         )}
       </div>
+
+      {/* Custom Duration Input Box */}
+      {!isPlaying && showCustomInput && (
+        <form onSubmit={handleApplyCustomDuration} className="mb-6 p-3 bg-[#0B192C]/90 rounded-2xl border border-[#008DDA]/40 max-w-sm flex items-center gap-2">
+          <span className="text-xs text-slate-300 font-bold whitespace-nowrap">ระบุเวลาเอง (วินาที):</span>
+          <input
+            type="number"
+            min="5"
+            max="600"
+            value={customInputVal}
+            onChange={(e) => setCustomInputVal(e.target.value)}
+            className="w-20 px-2 py-1 rounded-lg bg-[#1E3E62] border border-slate-600 text-white font-mono text-center font-bold text-sm"
+          />
+          <button
+            type="submit"
+            className="px-3 py-1 rounded-lg bg-[#008DDA] hover:bg-blue-600 text-white text-xs font-bold"
+          >
+            ยืนยัน
+          </button>
+        </form>
+      )}
 
       {/* Main Play Area */}
       <div className="max-w-xl mx-auto text-center">

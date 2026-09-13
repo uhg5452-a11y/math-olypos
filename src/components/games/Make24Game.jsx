@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle2, Trophy, Clock, Play, Delete } from 'lucide-react';
+import { RotateCcw, CheckCircle2, Trophy, Clock, Play, Delete, ArrowLeft, Sliders, Shuffle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 
@@ -7,13 +7,16 @@ import { useGame } from '../../context/GameContext';
 const PRESET_PUZZLES = [
   [3, 8, 3, 8], // 8 / (3 - 8/3) = 24
   [1, 3, 4, 6], // 6 / (1 - 3/4) = 24
-  [4, 4, 7, 7], // (7 - 4/7) * 4? no, (4 - 4/7)*7 = 24
+  [4, 4, 7, 7], // (4 - 4/7) * 7 = 24
   [5, 5, 5, 1], // (5 - 1/5) * 5 = 24
   [2, 3, 5, 7], // (7 - 5 + 2) * 6 = 24 or (5 - 2)*(7 + 1)
-  [6, 8, 2, 1], // (6 - 2) * (8 - 1) = 28 -> (8 - 6/2)*...
+  [6, 8, 2, 1], // (6 - 2) * (8 - 1) = 28 -> (8 - 6/2)
   [9, 9, 3, 1], // (9 + 9 - 1) + 7
   [4, 6, 8, 2], // 4 * 6 = 24
-  [3, 3, 7, 7]  // (3 + 3/7) * 7 = 24
+  [3, 3, 7, 7], // (3 + 3/7) * 7 = 24
+  [1, 2, 3, 4], // 1 * 2 * 3 * 4 = 24
+  [2, 4, 6, 8], // 8 * 4 - 6 - 2 = 24
+  [5, 6, 7, 8]  // (8 - (7 - 5)) * 4
 ];
 
 export default function Make24Game() {
@@ -24,7 +27,11 @@ export default function Make24Game() {
   const [message, setMessage] = useState('ประกอบสมการโดยใช้ตัวเลขทั้ง 4 ตัวให้ได้ผลลัพธ์เท่ากับ 24');
   const [score, setScore] = useState(0);
   const [solvedCount, setSolvedCount] = useState(0);
-  // Competition Countdown Timer Mode (60s)
+
+  // Custom Timer Duration (default 60s, supports 15s, 30s, 60s, 120s, custom)
+  const [duration, setDuration] = useState(60);
+  const [customInputVal, setCustomInputVal] = useState('60');
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [timeLeft, setTimeLeft] = useState(60);
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [gameEnded, setGameEnded] = useState(false);
@@ -49,8 +56,8 @@ export default function Make24Game() {
     return () => clearInterval(interval);
   }, [isTimerActive, timeLeft, gameEnded, score, solvedCount]);
 
-  // New random solvable puzzle
-  const newPuzzle = () => {
+  // New random solvable puzzle - RESETS TIMER BACK TO FULL DURATION EVERY TIME
+  const newPuzzle = (customDuration = duration) => {
     let randomSet;
     do {
       randomSet = PRESET_PUZZLES[Math.floor(Math.random() * PRESET_PUZZLES.length)];
@@ -59,31 +66,57 @@ export default function Make24Game() {
     setNumbers([...randomSet]);
     setUsedIndices([]);
     setTokens([]);
-    setMessage('สร้างสมการใหม่ให้ได้ 24');
+    // Reset timer back to starting duration per request
+    setTimeLeft(customDuration);
+    setMessage('สร้างสมการใหม่ให้ได้ 24 (รีเซ็ตเวลาใหม่)');
   };
 
   const handleRestartGame = () => {
     solvedPuzzlesRef.current.clear();
     setScore(0);
     setSolvedCount(0);
-    setTimeLeft(60);
+    setTimeLeft(duration);
     setGameEnded(false);
     setIsTimerActive(true);
-    newPuzzle();
+    newPuzzle(duration);
+  };
+
+  const handleSetPresetDuration = (secs) => {
+    setDuration(secs);
+    setShowCustomInput(false);
+    setTimeLeft(secs);
+  };
+
+  const handleApplyCustomDuration = (e) => {
+    e.preventDefault();
+    const val = parseInt(customInputVal, 10);
+    if (!isNaN(val) && val >= 5 && val <= 600) {
+      setDuration(val);
+      setTimeLeft(val);
+      setShowCustomInput(false);
+    }
+  };
+
+  const handleExitGame = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    window.history.pushState({}, '', url.pathname);
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game: null } }));
   };
 
   const handleAddNumber = (num, idx) => {
-    if (usedIndices.includes(idx)) return;
+    if (usedIndices.includes(idx) || !isTimerActive) return;
     setUsedIndices([...usedIndices, idx]);
     setTokens([...tokens, { type: 'num', value: num, idx }]);
   };
 
   const handleAddOperator = (op) => {
+    if (!isTimerActive) return;
     setTokens([...tokens, { type: 'op', value: op }]);
   };
 
   const handleBackspace = () => {
-    if (tokens.length === 0) return;
+    if (tokens.length === 0 || !isTimerActive) return;
     const lastToken = tokens[tokens.length - 1];
     if (lastToken.type === 'num') {
       setUsedIndices(usedIndices.filter(i => i !== lastToken.idx));
@@ -92,6 +125,7 @@ export default function Make24Game() {
   };
 
   const handleClear = () => {
+    if (!isTimerActive) return;
     setTokens([]);
     setUsedIndices([]);
   };
@@ -116,7 +150,7 @@ export default function Make24Game() {
         // Anti-exploit check: prevent duplicate scoring of same puzzle
         if (solvedPuzzlesRef.current.has(puzzleKey)) {
           setMessage('⚠️ ปริศนานี้ถูกบันทึกคะแนนไปแล้ว กำลังสุ่มโจทย์ใหม่...');
-          setTimeout(() => newPuzzle(), 600);
+          setTimeout(() => newPuzzle(duration), 600);
           return;
         }
 
@@ -127,19 +161,20 @@ export default function Make24Game() {
         setScore(newScore);
         setSolvedCount(c => c + 1);
         recordGameResult('make-24', newScore, { puzzle: puzzleKey, solvedCount: solvedCount + 1 });
-        setTimeout(() => newPuzzle(), 800);
+        // Automatically reset timer back to full duration on next puzzle
+        setTimeout(() => newPuzzle(duration), 700);
       } else {
-        // When wrong: immediately randomize a new question
-        setMessage(`❌ คำตอบไม่ถูกต้อง (ได้ ${result} ≠ 24)! กำลังเปลี่ยนโจทย์ใหม่ทันที...`);
+        // When wrong: immediately randomize a new question and reset timer
+        setMessage(`❌ คำตอบไม่ถูกต้อง (ได้ ${result} ≠ 24)! กำลังเปลี่ยนโจทย์และรีเซ็ตเวลาใหม่...`);
         setTimeout(() => {
-          newPuzzle();
+          newPuzzle(duration);
         }, 700);
       }
     } catch {
-      // When syntax error: immediately randomize a new question
-      setMessage('⚠️ รูปแบบสมการไม่ถูกต้อง! กำลังเปลี่ยนโจทย์ใหม่ทันที...');
+      // When syntax error: immediately randomize a new question and reset timer
+      setMessage('⚠️ รูปแบบสมการไม่ถูกต้อง! กำลังเปลี่ยนโจทย์และรีเซ็ตเวลาใหม่...');
       setTimeout(() => {
-        newPuzzle();
+        newPuzzle(duration);
       }, 700);
     }
   };
@@ -154,112 +189,137 @@ export default function Make24Game() {
     <div className="bg-[#1E3E62]/40 rounded-3xl p-6 sm:p-8 border border-white/10 backdrop-blur-md animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10 mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
-              มินิเกมที่ 5
-            </span>
-            <span className="text-xs text-slate-400">โหมดแข่งขันจับเวลา 60 วิ • ป้องกันการปั๊มคะแนน</span>
+        <div className="flex items-start sm:items-center gap-3">
+          <button
+            onClick={handleExitGame}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
+            title="ออกจากเกม / กลับศูนย์รวมเกม"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">กลับศูนย์รวมเกม</span>
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
+                มินิเกมที่ 5
+              </span>
+              <span className="text-xs text-slate-400">โหมดแข่งขันจับเวลา • รีเซ็ตเวลาใหม่ทุกข้อ</span>
+            </div>
+            <h2 className="text-2xl font-black text-white mt-1">
+              เกม 24 (Make 24) <span className="text-[#008DDA] glow-primary">Speed Challenge</span>
+            </h2>
+            <p className="text-xs text-slate-300 mt-0.5">
+              นำตัวเลข 4 ตัวมาคำนวณให้ได้ 24 ทุกครั้งที่เปลี่ยนข้อหรือตอบ ระบบจะรีเซ็ตเวลากลับไปเริ่มต้นทันที
+            </p>
           </div>
-          <h2 className="text-2xl font-black text-white mt-1">
-            เกม 24 (Make 24) <span className="text-[#008DDA] glow-primary">Speed Challenge</span>
-          </h2>
-          <p className="text-xs text-slate-300 mt-0.5">
-            นำตัวเลข 4 ตัวมาคำนวณให้ได้ 24 หากตอบผิดระบบจะสุ่มเปลี่ยนโจทย์ใหม่ทันที
-          </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Custom Timer Duration Controls */}
+          {!isTimerActive && (
+            <div className="flex flex-wrap items-center gap-1.5 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
+              {[15, 30, 60, 120].map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleSetPresetDuration(s)}
+                  className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all ${
+                    duration === s && !showCustomInput
+                      ? 'bg-[#008DDA] text-white shadow'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {s}s
+                </button>
+              ))}
+              <button
+                onClick={() => setShowCustomInput(p => !p)}
+                className={`px-2.5 py-1 rounded-xl text-xs font-bold flex items-center gap-1 transition-all ${
+                  showCustomInput
+                    ? 'bg-[#008DDA] text-white shadow'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Sliders className="w-3 h-3" /> กำหนดเอง
+              </button>
+            </div>
+          )}
+
           {/* Countdown Timer Badge */}
           <div className={`px-4 py-2 rounded-2xl border text-center transition-all ${
-            timeLeft <= 10 && !gameEnded
+            timeLeft <= 10 && !gameEnded && isTimerActive
               ? 'bg-rose-950/80 border-rose-500 animate-pulse'
               : 'bg-[#0B192C] border-white/10'
           }`}>
             <div className="text-[10px] uppercase font-bold text-slate-400 flex items-center justify-center gap-1">
-              <Clock className="w-3 h-3 text-[#008DDA]" /> เวลาที่เหลือ
+              <Clock className="w-3 h-3 text-[#008DDA]" /> เวลาประจำข้อ
             </div>
-            <div className={`text-xl font-black font-mono ${
-              timeLeft <= 10 && !gameEnded ? 'text-rose-400' : 'text-white'
+            <div className={`text-xl font-black font-mono mt-0.5 ${
+              timeLeft <= 10 && !gameEnded && isTimerActive ? 'text-rose-400' : 'text-white'
             }`}>
               {formatTimer(timeLeft)}
             </div>
           </div>
-
-          <div className="bg-[#0B192C] px-4 py-2 rounded-2xl border border-white/10 text-center">
-            <div className="text-[10px] uppercase font-bold text-slate-400">คะแนนสะสม</div>
-            <div className="text-xl font-black text-amber-400 flex items-center justify-center gap-1">
-              <Trophy className="w-4 h-4" /> {score}
-            </div>
-          </div>
-
-          <button
-            onClick={newPuzzle}
-            disabled={gameEnded}
-            className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-all disabled:opacity-40"
-            title="สุ่มโจทย์ใหม่"
-          >
-            <RotateCcw className="w-4 h-4" />
-          </button>
         </div>
       </div>
 
-      {/* Start Game Ready Banner (Requirement 3: Timer does not start before Start Game) */}
-      {!isTimerActive && !gameEnded && (
-        <div className="mb-6 p-6 rounded-3xl bg-gradient-to-r from-emerald-500/20 via-[#008DDA]/20 to-teal-500/20 border border-emerald-500/40 text-center space-y-3 animate-fade-in">
-          <div className="text-xl font-black text-white flex items-center justify-center gap-2">
-            <Clock className="w-6 h-6 text-emerald-400" /> โหมดแข่งขันจับเวลา 60 วินาที
-          </div>
-          <p className="text-xs text-slate-300 max-w-md mx-auto">
-            เวลานับถอยหลังจะยังไม่เริ่มนับจนกว่าคุณจะกดปุ่ม "เริ่มเกม" ด้านล่างนี้ นำตัวเลข 4 ตัวมาผสมกันให้ได้ผลลัพธ์ 24 ให้ได้มากที่สุด
-          </p>
+      {/* Custom Duration Input Box */}
+      {!isTimerActive && showCustomInput && (
+        <form onSubmit={handleApplyCustomDuration} className="mb-6 p-3 bg-[#0B192C]/90 rounded-2xl border border-[#008DDA]/40 max-w-sm flex items-center gap-2">
+          <span className="text-xs text-slate-300 font-bold whitespace-nowrap">ตั้งเวลาเอง (วินาที):</span>
+          <input
+            type="number"
+            min="5"
+            max="600"
+            value={customInputVal}
+            onChange={(e) => setCustomInputVal(e.target.value)}
+            className="w-20 px-2 py-1 rounded-lg bg-[#1E3E62] border border-slate-600 text-white font-mono text-center font-bold text-sm"
+          />
           <button
-            type="button"
-            onClick={() => {
-              setIsTimerActive(true);
-              setTimeLeft(60);
-              newPuzzle();
-            }}
-            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl inline-flex items-center gap-2 active:scale-95 transition-all"
+            type="submit"
+            className="px-3 py-1 rounded-lg bg-[#008DDA] hover:bg-blue-600 text-white text-xs font-bold"
           >
-            <Play className="w-4 h-4 fill-current" /> เริ่มเกม (Start Game)
+            ใช้ค่านีั
           </button>
-        </div>
+        </form>
       )}
 
-      {/* Game Ended Overlay Banner */}
-      {gameEnded && (
-        <div className="mb-6 p-6 rounded-3xl bg-gradient-to-r from-amber-500/20 via-[#008DDA]/20 to-purple-500/20 border border-amber-500/40 text-center space-y-3 animate-fade-in">
-          <div className="text-2xl font-black text-amber-400 flex items-center justify-center gap-2">
-            <Trophy className="w-7 h-7" /> หมดเวลาการแข่งขันรอบนี้!
+      {/* Score and Stats */}
+      <div className="flex items-center justify-between bg-[#0B192C]/80 p-4 rounded-2xl border border-white/10 mb-6">
+        <div className="flex items-center gap-2">
+          <Trophy className="w-5 h-5 text-amber-400" />
+          <div>
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">คะแนนสะสม</div>
+            <div className="text-lg font-black text-amber-400 glow-gold">{score} แต้ม</div>
           </div>
-          <p className="text-sm text-slate-200">
-            คุณตอบถูกทั้งหมด <span className="text-amber-300 font-bold text-base">{solvedCount}</span> ข้อ ได้คะแนนสะสม <span className="text-emerald-400 font-bold text-base">{score}</span> แต้ม
-          </p>
-          <button
-            onClick={handleRestartGame}
-            className="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-sm shadow-xl inline-flex items-center gap-2 active:scale-95 transition-all"
-          >
-            <Play className="w-4 h-4 fill-current" /> เริ่มแข่งรอบใหม่ (60 วิ)
-          </button>
         </div>
-      )}
+
+        <div className="text-right">
+          <div className="text-[10px] text-slate-400 uppercase font-semibold">ตอบถูกแล้ว</div>
+          <div className="text-lg font-black text-emerald-400">{solvedCount} ข้อ</div>
+        </div>
+      </div>
 
       {/* Main Play Area */}
-      <div className="max-w-xl mx-auto space-y-6">
-        {/* 4 Cards / Numbers */}
-        <div className="grid grid-cols-4 gap-3">
+      <div className="max-w-xl mx-auto text-center space-y-6">
+        {/* Status Message */}
+        <div className="text-xs font-semibold text-slate-300 px-4 py-2 rounded-xl bg-[#0B192C]/60 border border-white/5">
+          {message}
+        </div>
+
+        {/* 4 Number Cards */}
+        <div className="grid grid-cols-4 gap-3 sm:gap-4">
           {numbers.map((num, idx) => {
             const isUsed = usedIndices.includes(idx);
             return (
               <button
                 key={idx}
-                disabled={isUsed || gameEnded || !isTimerActive}
+                disabled={isUsed || !isTimerActive || gameEnded}
                 onClick={() => handleAddNumber(num, idx)}
-                className={`h-24 sm:h-28 rounded-2xl font-black text-3xl sm:text-4xl shadow-xl transition-all flex items-center justify-center select-none ${
+                className={`h-20 sm:h-24 rounded-2xl font-black text-2xl sm:text-4xl shadow-xl transition-all flex items-center justify-center ${
                   isUsed
-                    ? 'bg-slate-800/40 text-slate-600 border border-slate-700/30 cursor-not-allowed scale-95'
-                    : 'bg-gradient-to-b from-white to-slate-200 text-slate-900 hover:-translate-y-1 hover:shadow-2xl hover:ring-4 hover:ring-[#008DDA]/50 active:scale-95'
+                    ? 'bg-slate-800/40 text-slate-600 border border-white/5 cursor-not-allowed scale-95'
+                    : 'bg-gradient-to-b from-[#1E3E62] to-[#0B192C] text-white border-2 border-[#008DDA]/60 hover:border-[#008DDA] hover:scale-105 active:scale-95 shadow-blue-500/20'
                 }`}
               >
                 {num}
@@ -268,68 +328,87 @@ export default function Make24Game() {
           })}
         </div>
 
-        {/* Expression Screen */}
-        <div className="bg-[#0B192C]/90 rounded-2xl border border-[#008DDA]/40 p-4 min-h-[68px] flex items-center justify-between shadow-2xl box-glow">
-          <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-wider overflow-x-auto pr-2">
-            {tokens.length > 0 ? tokens.map(t => t.value).join(' ') : (
-              <span className="text-slate-500 text-sm font-normal">กดเลือกตัวเลขและเครื่องหมายคำนวณ</span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              onClick={handleBackspace}
-              disabled={gameEnded}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white disabled:opacity-40"
-              title="ลบตัวสุดท้าย"
-            >
-              <Delete className="w-4 h-4" />
-            </button>
-            <button
-              onClick={handleClear}
-              disabled={gameEnded}
-              className="px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-semibold disabled:opacity-40"
-            >
-              ล้าง
-            </button>
-          </div>
+        {/* Formed Equation Display */}
+        <div className="min-h-[64px] bg-[#0B192C] p-4 rounded-2xl border-2 border-[#008DDA]/40 flex items-center justify-center gap-1.5 overflow-x-auto">
+          {tokens.length === 0 ? (
+            <span className="text-xs text-slate-500 italic">แตะตัวเลขและเครื่องหมายเพื่อสร้างสมการ</span>
+          ) : (
+            tokens.map((token, i) => (
+              <span
+                key={i}
+                className={`px-2.5 py-1 rounded-xl font-mono font-bold text-lg sm:text-xl ${
+                  token.type === 'num'
+                    ? 'bg-[#008DDA] text-white shadow'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}
+              >
+                {token.value}
+              </span>
+            ))
+          )}
         </div>
 
-        {/* Operators & Actions */}
+        {/* Operators & Controls */}
         <div className="grid grid-cols-6 gap-2">
           {['+', '-', '×', '÷', '(', ')'].map((op) => (
             <button
               key={op}
-              disabled={gameEnded}
+              disabled={!isTimerActive || gameEnded}
               onClick={() => handleAddOperator(op)}
-              className="py-3 rounded-xl bg-[#1E3E62] hover:bg-[#008DDA] text-white font-black text-lg shadow transition-all active:scale-95 disabled:opacity-40"
+              className="py-3 rounded-xl bg-[#0B192C] hover:bg-[#1E3E62] text-amber-300 font-black text-lg border border-white/10 active:scale-95 transition-all disabled:opacity-40"
             >
               {op}
             </button>
           ))}
         </div>
 
-        {/* Submit Button (Hint Removed completely) */}
-        <div>
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClear}
+            disabled={tokens.length === 0 || !isTimerActive || gameEnded}
+            className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all disabled:opacity-40"
+          >
+            ล้างกระดาน
+          </button>
+
+          <button
+            onClick={handleBackspace}
+            disabled={tokens.length === 0 || !isTimerActive || gameEnded}
+            className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all disabled:opacity-40 flex items-center justify-center gap-1"
+          >
+            <Delete className="w-4 h-4" /> ลบทีละตัว
+          </button>
+
+          <button
+            onClick={() => newPuzzle(duration)}
+            disabled={!isTimerActive || gameEnded}
+            className="flex-1 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all disabled:opacity-40 flex items-center justify-center gap-1"
+            title="เปลี่ยนโจทย์ใหม่และรีเซ็ตเวลา"
+          >
+            <Shuffle className="w-3.5 h-3.5" /> เปลี่ยนโจทย์
+          </button>
+
           <button
             onClick={handleCheck}
-            disabled={gameEnded}
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+            disabled={usedIndices.length < 4 || !isTimerActive || gameEnded}
+            className="flex-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 disabled:opacity-40 text-slate-950 font-black text-sm shadow-lg shadow-emerald-500/30 transition-all active:scale-95 flex items-center justify-center gap-1.5"
           >
-            <CheckCircle2 className="w-5 h-5" /> ตรวจคำตอบ (= 24)
+            <CheckCircle2 className="w-4 h-4" /> ตรวจคำตอบ
           </button>
         </div>
 
-        {/* Message */}
-        <div className={`text-center text-xs font-medium p-3 rounded-xl transition-all ${
-          message.includes('❌') || message.includes('⚠️')
-            ? 'bg-rose-950/40 border border-rose-500/30 text-rose-300'
-            : message.includes('🎉')
-            ? 'bg-emerald-950/40 border border-emerald-500/30 text-emerald-300'
-            : 'text-slate-300'
-        }`}>
-          {message}
-        </div>
+        {/* Start / Restart Game Gate */}
+        {(!isTimerActive || gameEnded) && (
+          <div className="pt-4">
+            <button
+              onClick={handleRestartGame}
+              className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2 mx-auto active:scale-95 transition-all"
+            >
+              <Play className="w-4 h-4 fill-current" /> {gameEnded ? 'เริ่มแข่งรอบใหม่' : `เริ่มเกมจับเวลา (${duration} วิ/ข้อ)`}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

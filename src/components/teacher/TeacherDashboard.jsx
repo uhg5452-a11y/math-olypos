@@ -1,11 +1,13 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, Shield, Users, Radio, Play, Pause, RotateCcw, 
   Send, CheckCircle, AlertTriangle, Search, Key, Sparkles, Trophy, 
-  Clock, Check, X, Sliders, MessageSquare, AlertCircle
+  Clock, Check, X, Sliders, MessageSquare, AlertCircle, UserX, UserCheck
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useTournaments } from '../../context/TournamentContext';
 import { realtimeService } from '../../services/realtimeService';
+import ConfirmModal from '../common/ConfirmModal';
 
 export default function TeacherDashboard() {
   const { 
@@ -16,7 +18,21 @@ export default function TeacherDashboard() {
     announcements 
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState('rooms'); // 'rooms', 'disputes', 'broadcast', 'students'
+  const { tournaments, toggleForfeitStudent } = useTournaments();
+
+  const [activeTab, setActiveTab] = useState('rooms'); // 'rooms', 'roster', 'disputes', 'broadcast', 'students'
+  const [selectedTourneyId, setSelectedTourneyId] = useState(tournaments[0]?.id || '');
+
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    details: null,
+    confirmText: 'ยืนยัน',
+    type: 'danger',
+    onConfirm: () => {}
+  });
 
   // Room Supervision State
   const [activeRooms, setActiveRooms] = useState([
@@ -58,35 +74,32 @@ export default function TeacherDashboard() {
   // A-Math Disputes / Verification
   const [disputes, setDisputes] = useState([
     {
-      id: 'disp-1',
+      id: 'disp-01',
       roomId: 'AM-202',
-      player: 'Player 1',
-      equation: '12 × 4 + 6 = 54',
-      claimedPoints: 28,
-      status: 'pending', // 'pending', 'approved', 'rejected'
-      timestamp: '15:32'
+      player: 'โต๊ะ A (Player 1)',
+      equation: '12 + 8 = 20',
+      claimedPoints: 14,
+      status: 'pending',
+      timestamp: '15:28'
     },
     {
-      id: 'disp-2',
+      id: 'disp-02',
       roomId: 'AM-202',
-      player: 'Player 2',
-      equation: '75 ÷ 5 - 3 = 12',
-      claimedPoints: 22,
-      status: 'approved',
-      timestamp: '15:35'
+      player: 'โต๊ะ B (Player 2)',
+      equation: '5 * 4 = 20',
+      claimedPoints: 12,
+      status: 'pending',
+      timestamp: '15:31'
     }
   ]);
 
-  // Listen to live events
+  // Real-time synchronization
   useEffect(() => {
-    const unsub = realtimeService.subscribe('system_sync', 'room_status_report', (payload) => {
+    const unsub = realtimeService.subscribe('match_control', 'new_room_created', (payload) => {
       if (payload?.room) {
         setActiveRooms(prev => {
-          const idx = prev.findIndex(r => r.id === payload.room.id);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = { ...next[idx], ...payload.room };
-            return next;
+          if (prev.some(r => r.id === payload.room.id)) {
+            return prev.map(r => r.id === payload.room.id ? payload.room : r);
           }
           return [payload.room, ...prev];
         });
@@ -109,10 +122,19 @@ export default function TeacherDashboard() {
   };
 
   const handleCancelRoom = (roomId) => {
-    if (window.confirm(`ยืนยันการยกเลิกและรีเซ็ตห้องการแข่งขันรหัส ${roomId} ใช่หรือไม่?`)) {
-      realtimeService.sendEvent(roomId, 'match_control', { action: 'cancel' });
-      setActiveRooms(prev => prev.filter(r => r.id !== roomId));
-    }
+    setConfirmModal({
+      isOpen: true,
+      title: 'ยกเลิกห้องแข่งขัน',
+      message: `ยืนยันการยกเลิกและรีเซ็ตห้องการแข่งขันรหัส ${roomId} หรือไม่?`,
+      details: 'การยกเลิกห้องจะตัดการเชื่อมต่อของผู้เล่นทั้งสองฝ่ายและรีเซ็ตสถานะกระดานเกมทันที',
+      confirmText: 'ยกเลิกห้องแข่งขัน',
+      type: 'danger',
+      onConfirm: () => {
+        realtimeService.sendEvent(roomId, 'match_control', { action: 'cancel' });
+        setActiveRooms(prev => prev.filter(r => r.id !== roomId));
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   // Broadcast Handler
@@ -139,38 +161,72 @@ export default function TeacherDashboard() {
       ...student,
       privatePin: newPinValue.trim()
     };
-    updateStudentData(updated);
+    updateStudentData(student.id, updated);
     setEditingPinStudent(null);
     setNewPinValue('');
   };
 
+  // Toggle Forfeit Student with ConfirmModal
+  const handleToggleForfeit = (tourney, studentId, isCurrentlyForfeited) => {
+    const studentObj = students.find(s => s.studentId === studentId);
+    const studentName = studentObj ? studentObj.name : `รหัส ${studentId}`;
+
+    if (isCurrentlyForfeited) {
+      toggleForfeitStudent(tourney.id, studentId);
+    } else {
+      setConfirmModal({
+        isOpen: true,
+        title: 'ตัดสิทธิ์การแข่งขัน (Forfeit)',
+        message: `ยืนยันการตัดสิทธิ์ ${studentName} จากรายการนี้หรือไม่?`,
+        details: 'นักเรียนที่ถูกตัดสิทธิ์จะไม่สามารถเข้าสู่ห้องแข่งขัน Tournament Arena ในรายการนี้ได้',
+        confirmText: 'ยืนยันตัดสิทธิ์',
+        type: 'danger',
+        onConfirm: () => {
+          toggleForfeitStudent(tourney.id, studentId);
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      });
+    }
+  };
+
+  // Active tournament for Roster Tab
+  const currentTourney = tournaments.find(t => t.id === selectedTourneyId) || tournaments[0];
+
+  // Filter students
   const filteredStudents = students.filter(s => 
-    (s.studentId && s.studentId.toLowerCase().includes(studentSearch.toLowerCase())) ||
-    (s.name && s.name.toLowerCase().includes(studentSearch.toLowerCase())) ||
-    (s.grade && s.grade.toLowerCase().includes(studentSearch.toLowerCase()))
+    s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    s.studentId.toLowerCase().includes(studentSearch.toLowerCase())
   );
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-12">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0B192C] via-[#1E3E62] to-[#0B192C] border border-emerald-500/40 p-6 sm:p-8 shadow-2xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative z-10">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold mb-3">
-              <GraduationCap className="w-4 h-4" /> แผงควบคุมครูผู้ดูแล / คณะกรรมการตัดสิน (Arbiter Dashboard)
+      <div className="bg-gradient-to-r from-emerald-950/60 via-[#1E3E62] to-[#0B192C] p-6 rounded-3xl border border-emerald-500/30 backdrop-blur-md shadow-2xl">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-3xl shadow-lg shadow-emerald-500/20">
+              👨‍🏫
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-3">
-              ระบบกำกับดูแลการแข่งขันโอลิมปิกวิชาการ
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1">
-              โรงเรียนบรรหารแจ่มใสวิทยา 3 | เข้าสู่ระบบในฐานะ: <strong className="text-emerald-400">{currentUser?.name || 'ครูผู้ดูแล'}</strong> ({currentUser?.email})
-            </p>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
+                  Teacher Supervisor & Match Arbiter
+                </span>
+                <span className="text-xs text-slate-300 font-medium">โรงเรียนบรรหารแจ่มใสวิทยา 3</span>
+              </div>
+              <h2 className="text-2xl font-black text-white mt-1">
+                ระบบจัดการคุณครูและกรรมการผู้ตัดสินกลาง
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5">
+                ผู้ดูแลระบบ: <strong className="text-white">{currentUser?.name}</strong> ({currentUser?.email})
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
             <div className="bg-[#0B192C]/80 border border-white/10 px-4 py-3 rounded-2xl text-center">
-              <div className="text-[10px] text-slate-400 font-bold uppercase">ห้องแข่งขันสด</div>
-              <div className="text-2xl font-black text-emerald-400 font-mono">{activeRooms.length}</div>
+              <div className="text-[10px] text-slate-400 font-bold uppercase">ทัวร์นาเมนต์ทั้งหมด</div>
+              <div className="text-2xl font-black text-amber-400 font-mono">{tournaments.length}</div>
             </div>
             <div className="bg-[#0B192C]/80 border border-white/10 px-4 py-3 rounded-2xl text-center">
               <div className="text-[10px] text-slate-400 font-bold uppercase">นักเรียนในระบบ</div>
@@ -194,6 +250,17 @@ export default function TeacherDashboard() {
         </button>
 
         <button
+          onClick={() => setActiveTab('roster')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            activeTab === 'roster'
+              ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/30'
+              : 'bg-[#1E3E62]/60 text-slate-300 hover:text-white hover:bg-white/10'
+          }`}
+        >
+          <Trophy className="w-4 h-4" /> รายชื่อผู้สมัครรายทัวร์นาเมนต์
+        </button>
+
+        <button
           onClick={() => setActiveTab('disputes')}
           className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
             activeTab === 'disputes'
@@ -201,7 +268,7 @@ export default function TeacherDashboard() {
               : 'bg-[#1E3E62]/60 text-slate-300 hover:text-white hover:bg-white/10'
           }`}
         >
-          <Sliders className="w-4 h-4" /> ตรวจสอบสมการ A-Math ({disputes.filter(d => d.status === 'pending').length} รอดำเนินการ)
+          <Sliders className="w-4 h-4" /> ตรวจสอบสมการ A-Math ({disputes.filter(d => d.status === 'pending').length})
         </button>
 
         <button
@@ -302,7 +369,161 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 2: A-MATH & MATCH OVERSIGHT */}
+      {/* TAB 2: TOURNAMENT ROSTER & FORFEIT MANAGEMENT */}
+      {activeTab === 'roster' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#1E3E62]/40 p-5 rounded-2xl border border-white/10">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Users className="w-5 h-5 text-emerald-400" /> ตรวจสอบรายชื่อผู้สมัคร & สถานะการเข้าแข่งขัน
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                เลือกทัวร์นาเมนต์เพื่อดูรายชื่อนักเรียนที่ลงทะเบียนทั้งหมด ตรวจสอบการรายงานตัว และตัดสิทธิ์ (Forfeit) กรณีขาดการแข่งขัน
+              </p>
+            </div>
+
+            {/* Tournament Selector */}
+            <div className="min-w-[280px]">
+              <label className="block text-[10px] uppercase font-bold text-slate-400 mb-1">เลือกรอบการแข่งขัน</label>
+              <select
+                value={selectedTourneyId}
+                onChange={(e) => setSelectedTourneyId(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-white/20 text-white text-xs focus:outline-none focus:border-emerald-400"
+              >
+                {tournaments.map(t => (
+                  <option key={t.id} value={t.id}>
+                    [{t.division === 'junior' ? 'ม.ต้น' : 'ม.ปลาย'}] {t.title} ({t.registeredStudents?.length || 0} คน)
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {currentTourney && (
+            <div className="bg-[#1E3E62]/40 rounded-2xl border border-white/10 p-6 space-y-6">
+              {/* Tourney Info Card */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0B192C]/80 p-4 rounded-xl border border-white/10">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
+                      currentTourney.division === 'junior'
+                        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+                        : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30'
+                    }`}>
+                      {currentTourney.divisionName || (currentTourney.division === 'junior' ? 'สาย ม.ต้น' : 'สาย ม.ปลาย')}
+                    </span>
+                    <span className="text-xs text-[#008DDA] font-bold">{currentTourney.categoryName}</span>
+                  </div>
+                  <h4 className="text-base font-black text-white">{currentTourney.title}</h4>
+                  <div className="text-xs text-slate-400 mt-0.5">{currentTourney.roundName}</div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="bg-[#1E3E62]/60 px-4 py-2 rounded-xl text-center border border-white/10">
+                    <div className="text-[10px] text-slate-400 font-bold">จำนวนผู้สมัคร</div>
+                    <div className="text-xl font-mono font-black text-white">
+                      {currentTourney.registeredStudents?.length || 0} / {currentTourney.maxParticipants}
+                    </div>
+                  </div>
+                  <div className="bg-[#1E3E62]/60 px-4 py-2 rounded-xl text-center border border-white/10">
+                    <div className="text-[10px] text-rose-300 font-bold">ถูกตัดสิทธิ์</div>
+                    <div className="text-xl font-mono font-black text-rose-400">
+                      {currentTourney.forfeitedStudents?.length || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Roster Table */}
+              {(!currentTourney.registeredStudents || currentTourney.registeredStudents.length === 0) ? (
+                <div className="text-center py-12 bg-[#0B192C]/50 rounded-xl border border-dashed border-white/10">
+                  <Users className="w-10 h-10 text-slate-500 mx-auto mb-2" />
+                  <div className="text-sm font-bold text-white">ยังไม่มีนักเรียนลงทะเบียนในรายการนี้</div>
+                  <p className="text-xs text-slate-400 mt-1">
+                    เมื่อนักเรียนกดยืนยันการสมัคร รายชื่อจะปรากฏในตารางนี้แบบ Real-time
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/10 bg-[#0B192C]/70">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-[#1E3E62]/80 text-slate-400 uppercase text-[10px] font-bold border-b border-white/10">
+                      <tr>
+                        <th className="px-4 py-3 text-center">ลำดับ</th>
+                        <th className="px-4 py-3">รหัสนักเรียน</th>
+                        <th className="px-4 py-3">ชื่อ - นามสกุล</th>
+                        <th className="px-4 py-3">ระดับชั้น</th>
+                        <th className="px-4 py-3">สายการแข่งขัน</th>
+                        <th className="px-4 py-3 text-center">สถานะการแข่งขัน</th>
+                        <th className="px-4 py-3 text-right">คำสั่งกรรมการ</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {currentTourney.registeredStudents.map((sid, index) => {
+                        const sObj = students.find(s => s.studentId === sid);
+                        const isForfeited = currentTourney.forfeitedStudents?.includes(sid);
+
+                        return (
+                          <tr key={sid} className="hover:bg-white/5 transition-colors">
+                            <td className="px-4 py-3 text-center font-mono font-bold text-slate-400">
+                              #{index + 1}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-bold text-cyan-400">
+                              {sid}
+                            </td>
+                            <td className="px-4 py-3 font-bold text-white">
+                              {sObj ? sObj.name : 'นักเรียนโรงเรียนบรรหารแจ่มใสวิทยา 3'}
+                            </td>
+                            <td className="px-4 py-3 text-slate-300">
+                              {sObj ? sObj.grade : currentTourney.division === 'junior' ? 'ม.ต้น' : 'ม.ปลาย'}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                currentTourney.division === 'junior' ? 'text-emerald-300 bg-emerald-500/10' : 'text-indigo-300 bg-indigo-500/10'
+                              }`}>
+                                {currentTourney.divisionName || (currentTourney.division === 'junior' ? 'สาย ม.ต้น' : 'สาย ม.ปลาย')}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {isForfeited ? (
+                                <span className="px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 text-[11px] font-bold border border-rose-500/30 inline-flex items-center gap-1">
+                                  <UserX className="w-3 h-3" /> ถูกตัดสิทธิ์ (Forfeit)
+                                </span>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[11px] font-bold border border-emerald-500/30 inline-flex items-center gap-1">
+                                  <UserCheck className="w-3 h-3" /> พร้อมเข้าแข่งขัน (Ready)
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {isForfeited ? (
+                                <button
+                                  onClick={() => handleToggleForfeit(currentTourney, sid, true)}
+                                  className="px-3 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-500 text-white text-[11px] font-bold transition-all inline-flex items-center gap-1 shadow-sm"
+                                >
+                                  <UserCheck className="w-3 h-3" /> คืนสิทธิ์เข้าแข่งขัน
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleToggleForfeit(currentTourney, sid, false)}
+                                  className="px-3 py-1.5 rounded-lg bg-rose-600/80 hover:bg-rose-500 text-white text-[11px] font-bold transition-all inline-flex items-center gap-1 shadow-sm"
+                                >
+                                  <UserX className="w-3 h-3" /> ตัดสิทธิ์ (Forfeit)
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: A-MATH & MATCH OVERSIGHT */}
       {activeTab === 'disputes' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -356,7 +577,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 3: REAL-TIME BROADCAST */}
+      {/* TAB 4: REAL-TIME BROADCAST */}
       {activeTab === 'broadcast' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="bg-[#1E3E62]/50 border border-white/10 rounded-2xl p-6 space-y-4">
@@ -468,7 +689,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 4: STUDENT VERIFICATION & PIN RESET */}
+      {/* TAB 5: STUDENT VERIFICATION & PIN RESET */}
       {activeTab === 'students' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -577,6 +798,18 @@ export default function TeacherDashboard() {
           )}
         </div>
       )}
+
+      {/* CONFIRM MODAL (Replaces browser confirm) */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        details={confirmModal.details}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+      />
     </div>
   );
 }

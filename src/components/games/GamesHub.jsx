@@ -15,13 +15,29 @@ export default function GamesHub() {
 
   useEffect(() => {
     const handleNav = (e) => {
-      if (e.detail?.game) {
+      if (e.detail?.game !== undefined) {
         setActiveGame(e.detail.game);
+      } else if (e.detail?.view === 'practice' && !e.detail?.game) {
+        setActiveGame(null);
       }
     };
     window.addEventListener('navigate_view', handleNav);
     return () => window.removeEventListener('navigate_view', handleNav);
   }, []);
+
+  const handleSelectGame = (id) => {
+    setActiveGame(id);
+    const url = new URL(window.location.href);
+    url.searchParams.set('game', id);
+    window.history.pushState({}, '', url.toString());
+  };
+
+  const handleBackToHub = () => {
+    setActiveGame(null);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    window.history.pushState({}, '', url.pathname);
+  };
 
   const games = [
     {
@@ -85,7 +101,7 @@ export default function GamesHub() {
     return (
       <div className="space-y-6">
         <button
-          onClick={() => setActiveGame(null)}
+          onClick={handleBackToHub}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 hover:text-white text-xs font-bold transition-all"
         >
           ← กลับสู่ศูนย์รวมเกมฝึกซ้อม
@@ -120,7 +136,7 @@ export default function GamesHub() {
         {games.map((g) => (
           <div
             key={g.id}
-            onClick={() => setActiveGame(g.id)}
+            onClick={() => handleSelectGame(g.id)}
             className="flex flex-col bg-[#1E3E62]/70 border border-white/10 hover:border-[#008DDA]/50 rounded-3xl p-6 shadow-xl hover:-translate-y-1.5 hover:shadow-2xl hover:box-glow transition-all cursor-pointer backdrop-blur-md group"
           >
             <div className="flex items-start justify-between gap-3 mb-4">

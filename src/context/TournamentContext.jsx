@@ -175,6 +175,27 @@ export function TournamentProvider({ children }) {
     showToast('บันทึกผลการแข่งขันและปิดห้องแข่งขันเรียบร้อยแล้ว', 'success');
   };
 
+  // Forfeit/Disqualify student (late/absent)
+  const toggleForfeitStudent = (tournamentId, studentId) => {
+    const nextTourneys = tournaments.map(t => {
+      if (t.id === tournamentId) {
+        const currentForfeited = t.forfeitedStudents || [];
+        const isAlreadyForfeited = currentForfeited.includes(studentId);
+        const nextForfeited = isAlreadyForfeited
+          ? currentForfeited.filter(id => id !== studentId)
+          : [...currentForfeited, studentId];
+        return {
+          ...t,
+          forfeitedStudents: nextForfeited
+        };
+      }
+      return t;
+    });
+    setTournaments(nextTourneys);
+    realtimeService.sendEvent('system_sync', 'tournament_updated', { tournaments: nextTourneys });
+    showToast('อัปเดตสถานะการตัดสิทธิ์ (Forfeit) เรียบร้อยแล้ว', 'info');
+  };
+
   return (
     <TournamentContext.Provider
       value={{
@@ -186,6 +207,7 @@ export function TournamentProvider({ children }) {
         addTournament,
         deleteTournament,
         recordMatchResult,
+        toggleForfeitStudent,
         activeToast,
         showToast,
         closeToast
@@ -197,3 +219,4 @@ export function TournamentProvider({ children }) {
 }
 
 export const useTournament = () => useContext(TournamentContext);
+export const useTournaments = () => useContext(TournamentContext);

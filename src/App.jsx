@@ -42,6 +42,16 @@ function MainContent() {
     return () => window.removeEventListener('navigate_view', handleNav);
   }, []);
 
+  useEffect(() => {
+    if (currentView !== 'practice') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('game')) {
+        url.searchParams.delete('game');
+        window.history.replaceState({}, '', url.pathname);
+      }
+    }
+  }, [currentView]);
+
   const handleLoginSuccess = (role) => {
     if (role === 'admin') {
       setCurrentView('admin');

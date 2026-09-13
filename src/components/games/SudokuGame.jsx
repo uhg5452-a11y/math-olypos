@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, CheckCircle2, Trophy, Clock, AlertTriangle, Edit3, Sparkles, Play } from 'lucide-react';
+import { RotateCcw, CheckCircle2, Trophy, Clock, AlertTriangle, Edit3, Sparkles, Play, ArrowLeft, Shield, Check } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 
@@ -57,21 +57,24 @@ const SUDOKU_PRESETS = {
 
 export default function SudokuGame() {
   const { recordGameResult } = useGame();
+  // Mode: 'competition' (no mistake counter, no red hints) vs 'practice' (hints enabled)
+  const [mode, setMode] = useState('competition');
   const [difficulty, setDifficulty] = useState('easy');
   const [grid, setGrid] = useState(() => SUDOKU_PRESETS.easy.puzzle.map(r => [...r]));
   const [notes, setNotes] = useState(() => Array(9).fill(null).map(() => Array(9).fill([])));
   const [pencilMode, setPencilMode] = useState(false);
   const [selectedCell, setSelectedCell] = useState([0, 0]);
   const [mistakes, setMistakes] = useState(0);
-  // Countdown Timer Mode: 5-minute competition limit
+  // Countdown Timer: 5-minute limit (300s)
   const [timer, setTimer] = useState(300);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isTimeUp, setIsTimeUp] = useState(false);
   const [isCompleted, setIsCompleted] = useState(false);
+  const [validationMsg, setValidationMsg] = useState(null);
 
   const currentPreset = SUDOKU_PRESETS[difficulty];
 
-  // Countdown Timer (Requirement 3: Only counts down when isPlaying is true)
+  // Countdown Timer: Only counts down when isPlaying is true
   useEffect(() => {
     if (!isPlaying || isCompleted || isTimeUp) return;
     if (timer <= 0) {
@@ -82,7 +85,7 @@ export default function SudokuGame() {
     return () => clearInterval(interval);
   }, [isPlaying, isCompleted, isTimeUp, timer]);
 
-  const loadDifficulty = (diff) => {
+  const loadDifficulty = (diff, currentMode = mode) => {
     setDifficulty(diff);
     setGrid(SUDOKU_PRESETS[diff].puzzle.map(r => [...r]));
     setNotes(Array(9).fill(null).map(() => Array(9).fill([])));
@@ -92,6 +95,19 @@ export default function SudokuGame() {
     setIsPlaying(false);
     setIsTimeUp(false);
     setIsCompleted(false);
+    setValidationMsg(null);
+  };
+
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    loadDifficulty(difficulty, newMode);
+  };
+
+  const handleExitGame = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    window.history.pushState({}, '', url.pathname);
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game: null } }));
   };
 
   const handleCellSelect = (r, c) => {
@@ -125,20 +141,22 @@ export default function SudokuGame() {
       return;
     }
 
-    if (num !== solVal) {
+    // In practice mode only: track mistakes
+    if (mode === 'practice' && num !== solVal) {
       setMistakes(m => m + 1);
     }
 
     newGrid[r][c] = num;
     setGrid(newGrid);
 
-    // Check completion
+    // Check if fully solved
     let complete = true;
+    let allFilled = true;
     for (let i = 0; i < 9; i++) {
       for (let j = 0; j < 9; j++) {
+        if (newGrid[i][j] === 0) allFilled = false;
         if (newGrid[i][j] !== currentPreset.solution[i][j]) {
           complete = false;
-          break;
         }
       }
     }
@@ -146,13 +164,16 @@ export default function SudokuGame() {
     if (complete) {
       setIsCompleted(true);
       confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
-      const finalScore = Math.max(100, 1000 - timer * 2 - mistakes * 50);
-      recordGameResult('sudoku', finalScore, { difficulty, mistakes, time: timer });
+      const finalScore = Math.max(100, 1000 - timer * 2 - (mode === 'practice' ? mistakes * 50 : 0));
+      recordGameResult('sudoku', finalScore, { difficulty, mode, mistakes: mode === 'practice' ? mistakes : 0, time: 300 - timer });
+      setValidationMsg({ type: 'success', text: '🎉 ยอดเยี่ยมมาก! คุณแก้ปริศนาซูโดกุถูกต้องสมบูรณ์ทั้งตาราง' });
+    } else if (allFilled && mode === 'competition') {
+      setValidationMsg({ type: 'error', text: '⚠️ ตารางยังมีตัวเลขที่ไม่ถูกต้อง ตรวจทานและแก้ไขอีกครั้ง' });
     }
   };
 
   const handleReset = () => {
-    loadDifficulty(difficulty);
+    loadDifficulty(difficulty, mode);
   };
 
   const formatTimer = (secs) => {
@@ -165,39 +186,79 @@ export default function SudokuGame() {
     <div className="bg-[#1E3E62]/40 rounded-3xl p-6 sm:p-8 border border-white/10 backdrop-blur-md animate-fade-in">
       {/* Game Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10 mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
-              มินิเกมที่ 2
-            </span>
-            <span className="text-xs text-slate-400">ฝึกตรรกะตัวเลข 24 ชม.</span>
+        <div className="flex items-start sm:items-center gap-3">
+          <button
+            onClick={handleExitGame}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
+            title="ออกจากเกม / กลับศูนย์รวมเกม"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">กลับศูนย์รวมเกม</span>
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
+                มินิเกมที่ 2
+              </span>
+              <span className="text-xs text-slate-400">ฝึกตรรกะตัวเลข • มาตรฐานโอลิมปิก</span>
+            </div>
+            <h2 className="text-2xl font-black text-white mt-1">
+              ซูโดกุ (Sudoku) <span className="text-[#008DDA] glow-primary">Olympiad Grid</span>
+            </h2>
+            <p className="text-xs text-slate-300 mt-0.5">
+              เติมตัวเลข 1-9 ไม่ให้ซ้ำกันในแต่ละแถว คอลัมน์ และตารางย่อย 3x3
+            </p>
           </div>
-          <h2 className="text-2xl font-black text-white mt-1">
-            ซูโดกุ (Sudoku) <span className="text-[#008DDA] glow-primary">Olympiad Grid</span>
-          </h2>
-          <p className="text-xs text-slate-300 mt-0.5">
-            เติมตัวเลข 1-9 ไม่ให้ซ้ำกันในแต่ละแถว แต่ละคอลัมน์ และแต่ละตารางย่อย 3x3
-          </p>
         </div>
 
-        {/* Difficulty Selector */}
-        <div className="flex items-center gap-2 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
-          <button
-            onClick={() => loadDifficulty('easy')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-              difficulty === 'easy' ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            ง่าย (Easy)
-          </button>
-          <button
-            onClick={() => loadDifficulty('medium')}
-            className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-              difficulty === 'medium' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            ปานกลาง (Medium)
-          </button>
+        {/* Mode Switcher & Difficulty Selector */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Mode Switcher */}
+          <div className="flex items-center gap-1 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
+            <button
+              onClick={() => handleModeChange('competition')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                mode === 'competition'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="โหมดแข่งขัน: ปิดระบบตัวช่วยเตือนสีแดงและตัวนับข้อผิดพลาดทั้งหมด"
+            >
+              <Shield className="w-3.5 h-3.5" /> โหมดแข่งขัน
+            </button>
+            <button
+              onClick={() => handleModeChange('practice')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
+                mode === 'practice'
+                  ? 'bg-[#008DDA] text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="โหมดฝึกซ้อม: แสดงสีแดงเตือนเมื่อใส่ผิดและนับจำนวนข้อผิดพลาด"
+            >
+              <Edit3 className="w-3.5 h-3.5" /> โหมดฝึกซ้อม
+            </button>
+          </div>
+
+          {/* Difficulty Selector */}
+          <div className="flex items-center gap-1.5 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
+            <button
+              onClick={() => loadDifficulty('easy', mode)}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                difficulty === 'easy' ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ง่าย (Easy)
+            </button>
+            <button
+              onClick={() => loadDifficulty('medium', mode)}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                difficulty === 'medium' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ปานกลาง (Medium)
+            </button>
+          </div>
         </div>
       </div>
 
@@ -212,7 +273,8 @@ export default function SudokuGame() {
                   const isOrig = currentPreset.puzzle[r][c] !== 0;
                   const isSelected = selectedCell[0] === r && selectedCell[1] === c;
                   const isSameRowOrCol = selectedCell[0] === r || selectedCell[1] === c;
-                  const isWrong = val !== 0 && !isOrig && val !== currentPreset.solution[r][c];
+                  // In competition mode: NEVER show wrong color highlight! Only in practice mode.
+                  const isWrong = mode === 'practice' && val !== 0 && !isOrig && val !== currentPreset.solution[r][c];
                   const borderR = (c + 1) % 3 === 0 && c < 8 ? 'border-r-2 border-r-slate-500/80' : '';
                   const borderB = (r + 1) % 3 === 0 && r < 8 ? 'border-b-2 border-b-slate-500/80' : '';
 
@@ -227,6 +289,8 @@ export default function SudokuGame() {
                           ? 'bg-rose-950/80 text-rose-300'
                           : isOrig
                           ? 'bg-[#1E3E62]/70 text-cyan-200'
+                          : !isOrig && val !== 0
+                          ? 'bg-[#0B192C] text-emerald-400 font-black'
                           : isSameRowOrCol
                           ? 'bg-slate-800/80 text-white'
                           : 'bg-[#0B192C]/90 text-white hover:bg-slate-800'
@@ -246,14 +310,18 @@ export default function SudokuGame() {
             </div>
           </div>
 
-          {isCompleted && (
-            <div className="mt-4 p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500 text-emerald-200 text-sm font-bold flex items-center gap-2 animate-bounce">
-              <Sparkles className="w-5 h-5 text-emerald-400" /> ยินดีด้วย! คุณแก้ปริศนาซูโดกุสำเร็จในเวลาที่กำหนด!
+          {validationMsg && (
+            <div className={`mt-4 p-4 rounded-2xl border text-sm font-bold flex items-center gap-2 animate-fade-in ${
+              validationMsg.type === 'success'
+                ? 'bg-emerald-950/80 border-emerald-500 text-emerald-200 animate-bounce'
+                : 'bg-rose-950/80 border-rose-500 text-rose-200'
+            }`}>
+              <Sparkles className="w-5 h-5" /> {validationMsg.text}
             </div>
           )}
 
           {isTimeUp && !isCompleted && (
-            <div className="mt-4 p-4 rounded-2xl bg-rose-950/80 border border-rose-500 text-rose-200 text-sm font-bold flex items-center justify-between gap-2">
+            <div className="mt-4 p-4 rounded-2xl bg-rose-950/80 border border-rose-500 text-rose-200 text-sm font-bold flex items-center justify-between gap-2 w-full max-w-md">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-rose-400" /> หมดเวลา 5 นาทีสำหรับการแข่งขัน!
               </div>
@@ -281,16 +349,27 @@ export default function SudokuGame() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <div>
-                <div className="text-[10px] text-slate-400 uppercase font-semibold">ข้อผิดพลาด</div>
-                <div className="text-base font-black font-mono text-rose-300">{mistakes} ครั้ง</div>
+            {/* In Competition mode: Mistake counter is strictly hidden */}
+            {mode === 'competition' ? (
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-amber-400" />
+                <div>
+                  <div className="text-[10px] text-slate-400 uppercase font-semibold">ระบบคัดกรอง</div>
+                  <div className="text-xs font-bold text-amber-300">โหมดแข่งขัน (ไร้ตัวช่วย)</div>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-rose-400" />
+                <div>
+                  <div className="text-[10px] text-slate-400 uppercase font-semibold">ข้อผิดพลาด</div>
+                  <div className="text-base font-black font-mono text-rose-300">{mistakes} ครั้ง</div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Start Game Button (Requirement 3: Timer only begins upon clicking) */}
+          {/* Start Game Button: Timer only begins upon clicking */}
           {!isPlaying && !isCompleted && !isTimeUp && (
             <button
               onClick={() => {
@@ -309,7 +388,7 @@ export default function SudokuGame() {
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
                 <button
                   key={num}
-                  disabled={isCompleted || isTimeUp}
+                  disabled={isCompleted || isTimeUp || !isPlaying}
                   onClick={() => handleNumberInput(num)}
                   className="py-3 rounded-xl bg-[#1E3E62] hover:bg-[#008DDA] text-white font-black text-lg transition-all active:scale-95 shadow disabled:opacity-40"
                 >
@@ -318,33 +397,33 @@ export default function SudokuGame() {
               ))}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
               <button
+                disabled={isCompleted || isTimeUp || !isPlaying}
                 onClick={() => handleNumberInput(0)}
-                disabled={isCompleted || isTimeUp}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all disabled:opacity-40"
+                className="py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition-all active:scale-95 disabled:opacity-40"
               >
-                ลบ (Erase)
+                ลบตัวเลข (Erase)
               </button>
-
               <button
                 onClick={() => setPencilMode(!pencilMode)}
-                disabled={isCompleted || isTimeUp}
-                className={`py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 disabled:opacity-40 ${
-                  pencilMode ? 'bg-amber-500 text-slate-900' : 'bg-white/5 hover:bg-white/10 text-slate-300'
+                className={`py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-1.5 ${
+                  pencilMode
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-lg shadow-amber-500/20'
+                    : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
               >
-                <Edit3 className="w-3.5 h-3.5" /> โน้ต {pencilMode ? 'ON' : 'OFF'}
-              </button>
-
-              <button
-                onClick={handleReset}
-                className="py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-1"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-[#008DDA]" /> รีเซ็ตกระดาน
+                <Edit3 className="w-3.5 h-3.5" /> ดินสอ {pencilMode ? 'เปิด' : 'ปิด'}
               </button>
             </div>
           </div>
+
+          <button
+            onClick={handleReset}
+            className="w-full py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-semibold flex items-center justify-center gap-2 transition-all border border-white/5"
+          >
+            <RotateCcw className="w-3.5 h-3.5" /> เริ่มต้นตารางใหม่
+          </button>
         </div>
       </div>
     </div>

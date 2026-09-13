@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Award, Plus, Edit2, Trash2, Download, PlusCircle, MinusCircle, ShieldCheck, Search } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import Modal from '../common/Modal';
+import ConfirmModal from '../common/ConfirmModal';
 
 export default function LeaderboardManager() {
   const { leaderboard, updatePlayerScore, addLeaderboardEntry, removeLeaderboardEntry } = useGame();
@@ -9,6 +10,16 @@ export default function LeaderboardManager() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [bonusPoints, setBonusPoints] = useState(50);
+
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    details: null,
+    confirmText: 'ยืนยัน',
+    type: 'danger',
+    onConfirm: () => {}
+  });
 
   const [newEntry, setNewEntry] = useState({
     studentId: '',
@@ -160,9 +171,18 @@ export default function LeaderboardManager() {
                   <td className="py-3.5 px-4 text-right">
                     <button
                       onClick={() => {
-                        if (window.confirm(`ลบ ${p.name} (${p.studentId}) ออกจากตารางอันดับหรือไม่?`)) {
-                          removeLeaderboardEntry(p.studentId);
-                        }
+                        setConfirmModal({
+                          isOpen: true,
+                          title: 'ลบผู้เข้าแข่งขัน',
+                          message: `ยืนยันลบ ${p.name} (${p.studentId}) ออกจากตารางอันดับหรือไม่?`,
+                          details: 'ข้อมูลสถิติและคะแนนของผู้เล่นคนนี้จะถูกลบออกจากตารางคะแนนสะสม',
+                          confirmText: 'ลบออกจากตาราง',
+                          type: 'danger',
+                          onConfirm: () => {
+                            removeLeaderboardEntry(p.studentId);
+                            setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                          }
+                        });
                       }}
                       className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300"
                       title="ลบ"
@@ -276,6 +296,17 @@ export default function LeaderboardManager() {
           </form>
         </Modal>
       )}
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        details={confirmModal.details}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+      />
     </div>
   );
 }

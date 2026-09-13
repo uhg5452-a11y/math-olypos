@@ -30,11 +30,22 @@ export const storageService = {
   getTournaments: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.TOURNAMENTS);
-      const list = data ? JSON.parse(data) : INITIAL_TOURNAMENTS;
-      // Clean mock registered students
+      let list = data ? JSON.parse(data) : INITIAL_TOURNAMENTS;
+      if (!list || !list.some(t => t.division)) {
+        list = INITIAL_TOURNAMENTS;
+        localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(INITIAL_TOURNAMENTS));
+      } else {
+        // Ensure any new default tournament (e.g. Hall of Fame) is present
+        INITIAL_TOURNAMENTS.forEach(initT => {
+          if (!list.some(t => t.id === initT.id)) {
+            list.push(initT);
+          }
+        });
+      }
       return list.map(t => ({
         ...t,
         registeredStudents: (t.registeredStudents || []).filter(sid => !sid.startsWith('STU-2026-00')),
+        forfeitedStudents: t.forfeitedStudents || [],
         matches: (t.matches || []).filter(m => !isMockStudent(m.player1) && !isMockStudent(m.player2))
       }));
     } catch {
@@ -87,7 +98,14 @@ export const storageService = {
   getTeachers: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.TEACHERS);
-      return data ? JSON.parse(data) : INITIAL_TEACHERS;
+      const list = data ? JSON.parse(data) : INITIAL_TEACHERS;
+      const merged = [...INITIAL_TEACHERS];
+      (list || []).forEach(t => {
+        if (!merged.some(m => m.email.toLowerCase() === t.email.toLowerCase())) {
+          merged.push(t);
+        }
+      });
+      return merged;
     } catch {
       return INITIAL_TEACHERS;
     }

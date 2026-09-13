@@ -7,6 +7,15 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
   const { currentUser, isAdmin, isTeacher, isStudent, logout } = useAuth();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
+  const handleNavClick = (view) => {
+    setCurrentView(view);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    url.searchParams.delete('room');
+    window.history.pushState({}, '', url.pathname);
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view, game: null } }));
+  };
+
   return (
     <>
       <header className="sticky top-0 z-30 bg-[#0B192C]/90 backdrop-blur-xl border-b border-white/10">
@@ -14,7 +23,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
           <div className="flex items-center justify-between h-16 gap-4">
             {/* Logo */}
             <div
-              onClick={() => setCurrentView('tournaments')}
+              onClick={() => handleNavClick('tournaments')}
               className="flex items-center gap-3 cursor-pointer group"
             >
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#008DDA] to-blue-700 flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-all">
@@ -33,7 +42,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center gap-1">
               <button
-                onClick={() => setCurrentView('tournaments')}
+                onClick={() => handleNavClick('tournaments')}
                 className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
                   currentView === 'tournaments'
                     ? 'bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/40'
@@ -44,7 +53,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               </button>
 
               <button
-                onClick={() => setCurrentView('calendar')}
+                onClick={() => handleNavClick('calendar')}
                 className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
                   currentView === 'calendar'
                     ? 'bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/40'
@@ -55,7 +64,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               </button>
 
               <button
-                onClick={() => setCurrentView('practice')}
+                onClick={() => handleNavClick('practice')}
                 className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
                   currentView === 'practice'
                     ? 'bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/40'
@@ -69,7 +78,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               </button>
 
               <button
-                onClick={() => setCurrentView('leaderboard')}
+                onClick={() => handleNavClick('leaderboard')}
                 className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
                   currentView === 'leaderboard'
                     ? 'bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/40'
@@ -82,7 +91,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               {/* Student Registration History */}
               {isStudent && (
                 <button
-                  onClick={() => setCurrentView('my-registrations')}
+                  onClick={() => handleNavClick('my-registrations')}
                   className={`px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
                     currentView === 'my-registrations'
                       ? 'bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/40'
@@ -96,7 +105,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               {/* Teacher / Arbiter Dashboard Tab */}
               {isTeacher && (
                 <button
-                  onClick={() => setCurrentView('teacher')}
+                  onClick={() => handleNavClick('teacher')}
                   className={`px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
                     currentView === 'teacher'
                       ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/50'
@@ -110,7 +119,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               {/* Admin Dashboard Tab (Protected) */}
               {isAdmin && (
                 <button
-                  onClick={() => setCurrentView('admin')}
+                  onClick={() => handleNavClick('admin')}
                   className={`px-3 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition-all ${
                     currentView === 'admin'
                       ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50'
@@ -127,7 +136,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
               {currentUser ? (
                 <div className="flex items-center gap-2">
                   <div
-                    onClick={() => isStudent ? setCurrentView('my-registrations') : isTeacher ? setCurrentView('teacher') : setCurrentView('admin')}
+                    onClick={() => isStudent ? handleNavClick('my-registrations') : isTeacher ? handleNavClick('teacher') : handleNavClick('admin')}
                     className="flex items-center gap-2 p-1.5 pl-2 rounded-xl bg-[#1E3E62]/80 border border-white/10 hover:border-[#008DDA]/40 cursor-pointer transition-all"
                   >
                     <span className="text-lg">{currentUser.avatar || (isAdmin ? '👨‍🏫' : isTeacher ? '🧑‍🏫' : '🧑‍🎓')}</span>
@@ -164,7 +173,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
         {/* Mobile Sub-Navigation Bar */}
         <div className="md:hidden flex items-center justify-around bg-[#0B192C] border-t border-white/5 px-2 py-2 text-xs">
           <button
-            onClick={() => setCurrentView('tournaments')}
+            onClick={() => handleNavClick('tournaments')}
             className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
               currentView === 'tournaments' ? 'text-[#008DDA]' : 'text-slate-400'
             }`}
@@ -172,7 +181,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
             <Trophy className="w-4 h-4" /> แข่งขัน
           </button>
           <button
-            onClick={() => setCurrentView('calendar')}
+            onClick={() => handleNavClick('calendar')}
             className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
               currentView === 'calendar' ? 'text-[#008DDA]' : 'text-slate-400'
             }`}
@@ -180,7 +189,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
             <Calendar className="w-4 h-4" /> ตาราง
           </button>
           <button
-            onClick={() => setCurrentView('practice')}
+            onClick={() => handleNavClick('practice')}
             className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
               currentView === 'practice' ? 'text-[#008DDA]' : 'text-slate-400'
             }`}
@@ -188,7 +197,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
             <Gamepad2 className="w-4 h-4" /> ฝึกซ้อม
           </button>
           <button
-            onClick={() => setCurrentView('leaderboard')}
+            onClick={() => handleNavClick('leaderboard')}
             className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
               currentView === 'leaderboard' ? 'text-[#008DDA]' : 'text-slate-400'
             }`}
@@ -197,7 +206,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
           </button>
           {isTeacher && (
             <button
-              onClick={() => setCurrentView('teacher')}
+              onClick={() => handleNavClick('teacher')}
               className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
                 currentView === 'teacher' ? 'text-emerald-400' : 'text-slate-400'
               }`}
@@ -207,7 +216,7 @@ export default function Navbar({ currentView, setCurrentView, onOpenLogin }) {
           )}
           {isAdmin && (
             <button
-              onClick={() => setCurrentView('admin')}
+              onClick={() => handleNavClick('admin')}
               className={`px-2 py-1.5 rounded-lg flex flex-col items-center gap-1 ${
                 currentView === 'admin' ? 'text-amber-400' : 'text-slate-400'
               }`}

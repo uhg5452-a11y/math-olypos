@@ -169,7 +169,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                 <input
                   type="text"
                   required
-                  placeholder="เช่น STU-2026-001"
+                  placeholder="กรอกเลขประจำตัวนักเรียน"
                   value={studentId}
                   onChange={(e) => setStudentId(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm uppercase font-mono"
@@ -224,7 +224,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                 <input
                   type="text"
                   required
-                  placeholder="เช่น STU-2026-009"
+                  placeholder="กรอกเลขประจำตัวจากบัตรนักเรียน"
                   value={regStudentId}
                   onChange={(e) => setRegStudentId(e.target.value.toUpperCase())}
                   className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white uppercase font-mono"
@@ -315,7 +315,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                 <input
                   type="email"
                   required
-                  placeholder="เช่น teacher.math@banharn3.ac.th"
+                  placeholder="กรอกอีเมลบุคลากรที่ได้รับอนุมัติ"
                   value={teacherEmail}
                   onChange={(e) => setTeacherEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"

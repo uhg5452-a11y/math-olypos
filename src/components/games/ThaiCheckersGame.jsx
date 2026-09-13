@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Play } from 'lucide-react';
+import { RotateCcw, Bot, Users, Trophy, Sparkles, ChevronRight, AlertCircle, Play, ArrowLeft } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useGame } from '../../context/GameContext';
 import MatchResultModal from '../common/MatchResultModal';
@@ -278,23 +278,41 @@ export default function ThaiCheckersGame() {
     }
   }, [turn, gameMode, board, winner, gameStatus]);
 
+  const handleExitGame = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('game');
+    window.history.pushState({}, '', url.pathname);
+    window.dispatchEvent(new CustomEvent('navigate_view', { detail: { view: 'practice', game: null } }));
+  };
+
   return (
     <div className="bg-[#1E3E62]/40 rounded-3xl p-6 sm:p-8 border border-white/10 backdrop-blur-md animate-fade-in">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/10 mb-6">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
-              มินิเกมที่ 3 • โรงเรียนบรรหารแจ่มใสวิทยา 3
-            </span>
-            <span className="text-xs text-slate-400">ระบบเล่น 2 คนบนเครื่องเดียวกัน (Local Hotseat)</span>
+        <div className="flex items-start sm:items-center gap-3">
+          <button
+            onClick={handleExitGame}
+            className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
+            title="ออกจากเกม / กลับศูนย์รวมเกม"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">กลับศูนย์รวมเกม</span>
+          </button>
+
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#008DDA]/20 text-[#008DDA] border border-[#008DDA]/30">
+                มินิเกมที่ 3 • โรงเรียนบรรหารแจ่มใสวิทยา 3
+              </span>
+              <span className="text-xs text-slate-400">ระบบเล่น 2 คนบนเครื่องเดียวกัน (Local Hotseat)</span>
+            </div>
+            <h2 className="text-2xl font-black text-white mt-1">
+              หมากฮอสไทย (Thai Checkers) <span className="text-[#008DDA] glow-primary">Same Device</span>
+            </h2>
+            <p className="text-xs text-slate-300 mt-0.5">
+              กติกาหมากฮอสไทยแท้: เบี้ยเดินหน้าอย่างเดียว / ฮอสเดินและกินยาวทางไกล ผลัดกันเดินหมากบนหน้าจอเดียวกัน
+            </p>
           </div>
-          <h2 className="text-2xl font-black text-white mt-1">
-            หมากฮอสไทย (Thai Checkers) <span className="text-[#008DDA] glow-primary">Same Device</span>
-          </h2>
-          <p className="text-xs text-slate-300 mt-0.5">
-            กติกาหมากฮอสไทยแท้: เบี้ยเดินหน้าอย่างเดียว / ฮอสเดินและกินยาวทางไกล ผลัดกันเดินหมากบนหน้าจอเดียวกัน
-          </p>
         </div>
 
         {/* Mode Selector */}
