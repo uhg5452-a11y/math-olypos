@@ -17,7 +17,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   // New Student Registration State
   const [regStudentId, setRegStudentId] = useState('');
   const [regName, setRegName] = useState('');
-  const [regGrade, setRegGrade] = useState('ม.4/1');
+  const [regGrade, setRegGrade] = useState('');
   const [regPin, setRegPin] = useState('');
   const [regConfirmPin, setRegConfirmPin] = useState('');
   const [showRegPin, setShowRegPin] = useState(false);
@@ -63,6 +63,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
+    if (!regGrade.trim()) {
+      setAuthError('กรุณากรอกระดับชั้น / ห้อง เช่น ม.1/1 หรือ ม.4/2');
+      return;
+    }
     if (regPin !== regConfirmPin) {
       setAuthError('รหัสผ่านเฉพาะตัว (Private PIN) ทั้งสองช่องไม่ตรงกัน');
       return;
@@ -267,29 +271,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
             <div>
               <label className="block text-slate-300 font-semibold mb-1">ระดับชั้น / ห้อง:</label>
-              <select
+              <input
+                type="text"
+                required
+                placeholder="ระบุระดับชั้น เช่น ม.1/1 หรือ ม.4/2"
                 value={regGrade}
                 onChange={(e) => setRegGrade(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white"
-              >
-                <optgroup label="ระดับมัธยมศึกษาตอนต้น (ม.ต้น)">
-                  <option value="ม.1/1">มัธยมศึกษาปีที่ 1/1</option>
-                  <option value="ม.1/2">มัธยมศึกษาปีที่ 1/2</option>
-                  <option value="ม.1/3">มัธยมศึกษาปีที่ 1/3</option>
-                  <option value="ม.2/1">มัธยมศึกษาปีที่ 2/1</option>
-                  <option value="ม.2/2">มัธยมศึกษาปีที่ 2/2</option>
-                  <option value="ม.3/1">มัธยมศึกษาปีที่ 3/1</option>
-                  <option value="ม.3/2">มัธยมศึกษาปีที่ 3/2</option>
-                </optgroup>
-                <optgroup label="ระดับมัธยมศึกษาตอนปลาย (ม.ปลาย)">
-                  <option value="ม.4/1">มัธยมศึกษาปีที่ 4/1</option>
-                  <option value="ม.4/2">มัธยมศึกษาปีที่ 4/2</option>
-                  <option value="ม.5/1">มัธยมศึกษาปีที่ 5/1</option>
-                  <option value="ม.5/2">มัธยมศึกษาปีที่ 5/2</option>
-                  <option value="ม.6/1">มัธยมศึกษาปีที่ 6/1</option>
-                  <option value="ม.6/2">มัธยมศึกษาปีที่ 6/2</option>
-                </optgroup>
-              </select>
+                className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white placeholder-slate-500"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">

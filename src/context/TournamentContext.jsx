@@ -63,9 +63,19 @@ export function TournamentProvider({ children }) {
     // Strict Grade-Level Restriction Check (ม.ต้น vs ม.ปลาย)
     const getStudentDivision = (gradeStr) => {
       if (!gradeStr) return null;
-      const g = gradeStr.toLowerCase();
-      if (g.includes('ม.1') || g.includes('ม.2') || g.includes('ม.3') || g.includes('junior')) return 'junior';
-      if (g.includes('ม.4') || g.includes('ม.5') || g.includes('ม.6') || g.includes('senior')) return 'senior';
+      const g = gradeStr.toLowerCase().replace(/\s+/g, '');
+      if (
+        g.includes('ม.1') || g.includes('ม.2') || g.includes('ม.3') ||
+        g.includes('ม1') || g.includes('ม2') || g.includes('ม3') ||
+        g.includes('มัธยม1') || g.includes('มัธยม2') || g.includes('มัธยม3') ||
+        g.includes('ม.ต้น') || g.includes('มต้น') || g.includes('junior')
+      ) return 'junior';
+      if (
+        g.includes('ม.4') || g.includes('ม.5') || g.includes('ม.6') ||
+        g.includes('ม4') || g.includes('ม5') || g.includes('ม6') ||
+        g.includes('มัธยม4') || g.includes('มัธยม5') || g.includes('มัธยม6') ||
+        g.includes('ม.ปลาย') || g.includes('มปลาย') || g.includes('senior')
+      ) return 'senior';
       return null;
     };
 
