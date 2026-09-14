@@ -55,10 +55,8 @@ const SUDOKU_PRESETS = {
   }
 };
 
-export default function SudokuGame() {
+export default function SudokuGame({ mode = 'practice' }) {
   const { recordGameResult } = useGame();
-  // Mode: 'competition' (no mistake counter, no red hints) vs 'practice' (hints enabled)
-  const [mode, setMode] = useState('competition');
   const [difficulty, setDifficulty] = useState('easy');
   const [grid, setGrid] = useState(() => SUDOKU_PRESETS.easy.puzzle.map(r => [...r]));
   const [notes, setNotes] = useState(() => Array(9).fill(null).map(() => Array(9).fill([])));
@@ -85,7 +83,7 @@ export default function SudokuGame() {
     return () => clearInterval(interval);
   }, [isPlaying, isCompleted, isTimeUp, timer]);
 
-  const loadDifficulty = (diff, currentMode = mode) => {
+  const loadDifficulty = (diff) => {
     setDifficulty(diff);
     setGrid(SUDOKU_PRESETS[diff].puzzle.map(r => [...r]));
     setNotes(Array(9).fill(null).map(() => Array(9).fill([])));
@@ -96,11 +94,6 @@ export default function SudokuGame() {
     setIsTimeUp(false);
     setIsCompleted(false);
     setValidationMsg(null);
-  };
-
-  const handleModeChange = (newMode) => {
-    setMode(newMode);
-    loadDifficulty(difficulty, newMode);
   };
 
   const handleExitGame = () => {
@@ -212,38 +205,25 @@ export default function SudokuGame() {
           </div>
         </div>
 
-        {/* Mode Switcher & Difficulty Selector */}
+        {/* Mode Indicator & Difficulty Selector */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
-            <button
-              onClick={() => handleModeChange('competition')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                mode === 'competition'
-                  ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-slate-950 font-black shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="โหมดแข่งขัน: ปิดระบบตัวช่วยเตือนสีแดงและตัวนับข้อผิดพลาดทั้งหมด"
-            >
-              <Shield className="w-3.5 h-3.5" /> โหมดแข่งขัน
-            </button>
-            <button
-              onClick={() => handleModeChange('practice')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-                mode === 'practice'
-                  ? 'bg-[#008DDA] text-white shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-              title="โหมดฝึกซ้อม: แสดงสีแดงเตือนเมื่อใส่ผิดและนับจำนวนข้อผิดพลาด"
-            >
-              <Edit3 className="w-3.5 h-3.5" /> โหมดฝึกซ้อม
-            </button>
+          {/* Mode Indicator Badge (No mode toggle inside game) */}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-[#0B192C] border border-white/10">
+            {mode === 'competition' ? (
+              <span className="text-xs font-black text-amber-300 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-amber-400" /> โหมดแข่งขัน (ไร้ตัวช่วย)
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-[#008DDA] flex items-center gap-1.5">
+                <Edit3 className="w-3.5 h-3.5 text-[#008DDA]" /> โหมดฝึกซ้อม
+              </span>
+            )}
           </div>
 
           {/* Difficulty Selector */}
           <div className="flex items-center gap-1.5 bg-[#0B192C] p-1.5 rounded-2xl border border-white/10">
             <button
-              onClick={() => loadDifficulty('easy', mode)}
+              onClick={() => loadDifficulty('easy')}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
                 difficulty === 'easy' ? 'bg-[#008DDA] text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
@@ -251,7 +231,7 @@ export default function SudokuGame() {
               ง่าย (Easy)
             </button>
             <button
-              onClick={() => loadDifficulty('medium', mode)}
+              onClick={() => loadDifficulty('medium')}
               className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
                 difficulty === 'medium' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
               }`}

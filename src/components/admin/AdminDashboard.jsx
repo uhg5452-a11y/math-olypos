@@ -1,17 +1,33 @@
 import React, { useState } from 'react';
-import { Shield, Trophy, Users, Award, Lock, Sparkles, LogIn } from 'lucide-react';
+import { 
+  Shield, Trophy, Users, Award, Lock, Sparkles, LogIn, Search, 
+  Trash2, UserX, AlertTriangle, GraduationCap, CheckCircle 
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTournament } from '../../context/TournamentContext';
 import { useGame } from '../../context/GameContext';
 import TournamentManager from './TournamentManager';
 import MatchManager from './MatchManager';
 import LeaderboardManager from './LeaderboardManager';
+import ConfirmModal from '../common/ConfirmModal';
 
 export default function AdminDashboard({ onOpenLogin }) {
-  const { currentUser, isAdmin } = useAuth();
+  const { currentUser, isAdmin, students, deleteStudentAccount } = useAuth();
   const { tournaments } = useTournament();
   const { leaderboard } = useGame();
-  const [activeTab, setActiveTab] = useState('tournaments'); // 'tournaments', 'matches', 'leaderboard'
+  const [activeTab, setActiveTab] = useState('tournaments'); // 'tournaments', 'matches', 'leaderboard', 'students'
+  const [studentSearch, setStudentSearch] = useState('');
+
+  // Confirm Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    details: null,
+    confirmText: 'ยืนยัน',
+    type: 'danger',
+    onConfirm: () => {}
+  });
 
   // RBAC Access Control Check
   if (!isAdmin) {
@@ -43,8 +59,29 @@ export default function AdminDashboard({ onOpenLogin }) {
   const openTournaments = tournaments.filter(t => t.isRegistrationOpen).length;
   const totalRegisteredAthletes = tournaments.reduce((acc, t) => acc + (t.registeredStudents?.length || 0), 0);
 
+  const filteredStudents = students.filter(s =>
+    s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    s.studentId.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    (s.grade && s.grade.toLowerCase().includes(studentSearch.toLowerCase()))
+  );
+
+  const handleDeleteStudent = (student) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'ลบบัญชีนักเรียน (Delete Student Account)',
+      message: `ยืนยันการลบบัญชีของ ${student.name} (รหัส ${student.studentId}) ออกจากระบบหรือไม่?`,
+      details: 'การลบบัญชีจะทำให้ข้อมูลประจำตัวและประวัติการลงทะเบียนของนักเรียนรายนี้ถูกถอดออกจากระบบอย่างถาวร',
+      confirmText: 'ลบบัญชีทันที',
+      type: 'danger',
+      onConfirm: () => {
+        deleteStudentAccount(student.studentId);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-12">
       {/* Admin Header & Welcome */}
       <div className="bg-gradient-to-r from-amber-950/50 via-[#0B192C] to-slate-900 border border-amber-500/30 rounded-3xl p-6 sm:p-8 shadow-xl backdrop-blur-md">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -82,8 +119,8 @@ export default function AdminDashboard({ onOpenLogin }) {
           </div>
 
           <div className="bg-[#0B192C]/80 border border-white/10 rounded-2xl p-3 text-center">
-            <div className="text-[10px] uppercase font-bold text-slate-400">ยอดสมัครสะสม</div>
-            <div className="text-xl font-black text-[#008DDA] mt-0.5">{totalRegisteredAthletes} คน</div>
+            <div className="text-[10px] uppercase font-bold text-slate-400">นักเรียนในระบบ</div>
+            <div className="text-xl font-black text-[#008DDA] mt-0.5">{students.length} คน</div>
           </div>
 
           <div className="bg-[#0B192C]/80 border border-white/10 rounded-2xl p-3 text-center">
@@ -94,7 +131,7 @@ export default function AdminDashboard({ onOpenLogin }) {
       </div>
 
       {/* Admin Module Tabs */}
-      <div className="grid grid-cols-3 gap-2 bg-[#0B192C]/80 p-1.5 rounded-2xl border border-white/10 max-w-2xl">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-[#0B192C]/80 p-1.5 rounded-2xl border border-white/10 max-w-3xl">
         <button
           onClick={() => setActiveTab('tournaments')}
           className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
@@ -127,6 +164,17 @@ export default function AdminDashboard({ onOpenLogin }) {
         >
           <Award className="w-4 h-4" /> จัดการอันดับ
         </button>
+
+        <button
+          onClick={() => setActiveTab('students')}
+          className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'students'
+              ? 'bg-amber-600 text-white shadow-lg'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Users className="w-4 h-4" /> บัญชีนักเรียน ({students.length})
+        </button>
       </div>
 
       {/* Tab Panels */}
@@ -134,7 +182,108 @@ export default function AdminDashboard({ onOpenLogin }) {
         {activeTab === 'tournaments' && <TournamentManager />}
         {activeTab === 'matches' && <MatchManager />}
         {activeTab === 'leaderboard' && <LeaderboardManager />}
+
+        {/* TAB 4: STUDENT ACCOUNTS MANAGEMENT (ADMIN PRIVILEGE) */}
+        {activeTab === 'students' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#0B192C]/80 p-5 rounded-2xl border border-white/10">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Users className="w-5 h-5 text-amber-400" /> บัญชีนักเรียนทั้งหมด (โรงเรียนบรรหารแจ่มใสวิทยา 3)
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  เฉพาะแอดมินเท่านั้นที่มีสิทธิ์ตรวจสอบข้อมูลและลบบัญชีนักเรียนออกจากฐานข้อมูล
+                </p>
+              </div>
+
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="ค้นหาชื่อ, รหัสนักเรียน..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#0B192C] border border-white/20 text-white text-xs focus:outline-none focus:border-amber-400"
+                />
+              </div>
+            </div>
+
+            {filteredStudents.length === 0 ? (
+              <div className="p-12 text-center bg-[#0B192C]/60 rounded-2xl border border-white/10 space-y-2">
+                <Users className="w-10 h-10 text-slate-500 mx-auto" />
+                <div className="text-white font-bold text-base">ไม่พบข้อมูลบัญชีนักเรียน</div>
+                <p className="text-xs text-slate-400 max-w-md mx-auto">
+                  ระบบจะแสดงผลเฉพาะนักเรียนจริงที่มีการลงทะเบียนสมัครใช้งานเท่านั้น (ไม่มีข้อมูลตัวอย่าง)
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-white/10 bg-[#0B192C]/90 shadow-xl">
+                <table className="w-full text-left text-xs text-slate-300">
+                  <thead className="bg-[#1E3E62]/80 text-slate-400 uppercase text-[10px] font-bold border-b border-white/10">
+                    <tr>
+                      <th className="px-4 py-3.5">ลำดับ</th>
+                      <th className="px-4 py-3.5">รหัสนักเรียน</th>
+                      <th className="px-4 py-3.5">ชื่อ - นามสกุล</th>
+                      <th className="px-4 py-3.5">ระดับชั้น</th>
+                      <th className="px-4 py-3.5 text-center">สายการแข่งขัน</th>
+                      <th className="px-4 py-3.5 font-mono text-amber-400 text-center">Math ELO</th>
+                      <th className="px-4 py-3.5 text-right">การจัดการสิทธิ์แอดมิน</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {filteredStudents.map((s, idx) => {
+                      const isJunior = (s.grade || '').includes('ม.1') || (s.grade || '').includes('ม.2') || (s.grade || '').includes('ม.3');
+                      return (
+                        <tr key={s.id || s.studentId} className="hover:bg-white/5 transition-colors">
+                          <td className="px-4 py-3.5 font-mono text-slate-400">#{idx + 1}</td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-cyan-400">{s.studentId}</td>
+                          <td className="px-4 py-3.5 font-bold text-white flex items-center gap-2">
+                            <span>{s.avatar || '🧑‍🎓'}</span> {s.name}
+                          </td>
+                          <td className="px-4 py-3.5 text-slate-300">{s.grade || 'มัธยมศึกษา'}</td>
+                          <td className="px-4 py-3.5 text-center">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              isJunior
+                                ? 'bg-blue-500/20 text-blue-300 border-blue-400/30'
+                                : 'bg-purple-500/20 text-purple-300 border-purple-400/30'
+                            }`}>
+                              {isJunior ? 'ม.ต้น' : 'ม.ปลาย'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3.5 font-mono font-bold text-amber-400 text-center">
+                            {s.elo || 1500}
+                          </td>
+                          <td className="px-4 py-3.5 text-right">
+                            <button
+                              onClick={() => handleDeleteStudent(s)}
+                              className="px-3 py-1.5 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white font-bold text-[11px] inline-flex items-center gap-1.5 transition-all shadow-md active:scale-95"
+                              title="ลบบัญชีนักเรียนออกจากระบบ"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" /> ลบบัญชีผู้ใช้
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        details={confirmModal.details}
+        confirmText={confirmModal.confirmText}
+        type={confirmModal.type}
+      />
     </div>
   );
 }

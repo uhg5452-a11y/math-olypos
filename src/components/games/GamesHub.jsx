@@ -15,9 +15,9 @@ export default function GamesHub() {
 
   useEffect(() => {
     const handleNav = (e) => {
-      if (e.detail?.game !== undefined) {
+      if (e.detail?.game) {
         setActiveGame(e.detail.game);
-      } else if (e.detail?.view === 'practice' && !e.detail?.game) {
+      } else {
         setActiveGame(null);
       }
     };
@@ -47,7 +47,7 @@ export default function GamesHub() {
       description: 'วางเบี้ยตัวเลขและเครื่องหมายลงบนกระดาน 15x15 เพื่อสร้างสมการที่ถูกต้องทั้งแนวตั้งและแนวนอน พร้อมช่องคะแนนพิเศษ 3E, 2E, 3P, 2P และดาวกึ่งกลาง ★',
       icon: '🔤',
       badge: '15x15 Standard Competition',
-      component: <AMathGame />
+      component: <AMathGame mode="practice" />
     },
     {
       id: 'sudoku',
@@ -56,7 +56,7 @@ export default function GamesHub() {
       description: 'ปริศนาตัวเลข 9x9 ระดับแข่งขัน เลือกระดับความยากง่าย-ปานกลาง พร้อมโหมดโน้ตดินสอและจับเวลาแข่งขัน',
       icon: '🔢',
       badge: 'Deduction Puzzle',
-      component: <SudokuGame />
+      component: <SudokuGame mode="practice" />
     },
     {
       id: 'checkers',
@@ -65,7 +65,7 @@ export default function GamesHub() {
       description: 'กติกาหมากฮอสไทยแท้ เดินทแยง กินเบี้ย และเข้าฮอสเพื่อเปิดทางเดินกว้าง เลือกระหว่างสู้กับบอท หรือเล่นสองคน',
       icon: '♟️',
       badge: 'Board Strategy',
-      component: <ThaiCheckersGame />
+      component: <ThaiCheckersGame mode="practice" />
     },
     {
       id: 'speed-math',
@@ -74,7 +74,7 @@ export default function GamesHub() {
       description: 'ท้าประลองคิดเลขเร็วต่อเนื่องสะสมคอมโบ Streak Multiplier วัดความไวและความแม่นยำในการคิดคำนวณ',
       icon: '⚡',
       badge: 'High Speed Calculation',
-      component: <SpeedMathGame />
+      component: <SpeedMathGame mode="practice" />
     },
     {
       id: 'make-24',
@@ -83,7 +83,7 @@ export default function GamesHub() {
       description: 'ผสมตัวเลข 4 ตัวด้วย +, -, ×, ÷ และวงเล็บ ให้ได้ 24 โหมดจับเวลา 60 วินาที ตอบผิดเปลี่ยนโจทย์ใหม่ทันที',
       icon: '🧮',
       badge: 'Combinatorics',
-      component: <Make24Game />
+      component: <Make24Game mode="practice" />
     },
     {
       id: 'flash-anzan',
@@ -92,7 +92,7 @@ export default function GamesHub() {
       description: 'ตัวเลขกะพริบกลางอากาศด้วยความเร็ว 0.5 - 1.2 วินาที รวมผลลัพธ์ในใจอย่างแม่นยำโดยไม่ต้องใช้กระดาษทด',
       icon: '🧠',
       badge: 'Mental Arithmetic',
-      component: <FlashAnzanGame />
+      component: <FlashAnzanGame mode="practice" />
     }
   ];
 

@@ -1,29 +1,38 @@
 import React, { useState } from 'react';
-import { User, Lock, Mail, Shield, AlertCircle, ArrowRight, UserPlus, KeyRound, GraduationCap } from 'lucide-react';
+import { 
+  User, Lock, Mail, Shield, AlertCircle, ArrowRight, UserPlus, 
+  KeyRound, GraduationCap, Eye, EyeOff, CheckCircle2 
+} from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../common/Modal';
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
-  const [tab, setTab] = useState('student'); // 'student', 'register', 'admin'
+  const [tab, setTab] = useState('student'); // 'student', 'register', 'teacher', 'admin'
 
   // Student Login State
   const [studentId, setStudentId] = useState('');
   const [privatePin, setPrivatePin] = useState('');
+  const [showStudentPin, setShowStudentPin] = useState(false);
 
   // New Student Registration State
   const [regStudentId, setRegStudentId] = useState('');
   const [regName, setRegName] = useState('');
-  const [regGrade, setRegGrade] = useState('มัธยมศึกษาปีที่ 4/1');
+  const [regGrade, setRegGrade] = useState('ม.4/1');
   const [regPin, setRegPin] = useState('');
   const [regConfirmPin, setRegConfirmPin] = useState('');
-
-  // Admin Login State
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
+  const [showRegPin, setShowRegPin] = useState(false);
+  const [showRegConfirmPin, setShowRegConfirmPin] = useState(false);
+  const [hasVerifiedPinFirstTime, setHasVerifiedPinFirstTime] = useState(false);
 
   // Teacher / Moderator Login State
   const [teacherEmail, setTeacherEmail] = useState('');
   const [teacherPassword, setTeacherPassword] = useState('');
+  const [showTeacherPassword, setShowTeacherPassword] = useState(false);
+
+  // Admin Login State
+  const [adminEmail, setAdminEmail] = useState('');
+  const [adminPassword, setAdminPassword] = useState('');
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
 
   const {
     loginStudent,
@@ -60,6 +69,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     }
     if (regPin.length < 4) {
       setAuthError('Private PIN ควรมีความยาวอย่างน้อย 4 ตัวอักษร/ตัวเลข');
+      return;
+    }
+    if (!hasVerifiedPinFirstTime) {
+      setAuthError('กรุณาเปิดดูรหัสผ่านและทำเครื่องหมายยืนยันตรวจสอบรหัสผ่านในครั้งแรกก่อนสมัครใช้งาน');
       return;
     }
 
@@ -152,7 +165,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
           <div className="p-3 rounded-xl bg-[#008DDA]/10 border border-[#008DDA]/30 text-cyan-200 text-xs mb-4 flex items-start gap-2">
             <KeyRound className="w-4 h-4 text-[#008DDA] mt-0.5 flex-shrink-0" />
             <div>
-              <span className="font-bold">ระบบยืนยันตัวตนนักเรียน โรงเรียนบรรหารแจ่มใสวิทยา 3:</span>
+              <span className="font-bold">ระบบยืนยันตัวตนนักเรียน โรงเรียนบรรหารแจ่มใสวิทยา 3 (บ.จ.3):</span>
               <p className="text-[11px] text-cyan-300/80 mt-0.5">
                 กรอกเลขประจำตัวนักเรียนและรหัสผ่านเฉพาะตัว (Private PIN) ที่ท่านตั้งไว้เพื่อเข้าใช้งาน
               </p>
@@ -184,13 +197,21 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#008DDA]" />
                 <input
-                  type="password"
+                  type={showStudentPin ? 'text' : 'password'}
                   required
                   placeholder="กรอกรหัสผ่านเฉพาะตัวของคุณ"
                   value={privatePin}
                   onChange={(e) => setPrivatePin(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm font-mono"
+                  className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-[#008DDA] focus:ring-1 focus:ring-[#008DDA] transition-all text-sm font-mono"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowStudentPin(!showStudentPin)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                  title={showStudentPin ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                >
+                  {showStudentPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -205,7 +226,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
       )}
 
       {tab === 'register' && (
-        /* New Student Registration Form */
+        /* New Student Registration Form with First-Time PIN Verification */
         <div>
           <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs mb-4 flex items-start gap-2">
             <UserPlus className="w-4 h-4 text-emerald-400 mt-0.5 flex-shrink-0" />
@@ -246,40 +267,105 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
             <div>
               <label className="block text-slate-300 font-semibold mb-1">ระดับชั้น / ห้อง:</label>
-              <input
-                type="text"
-                required
-                placeholder="เช่น ม.4/1"
+              <select
                 value={regGrade}
                 onChange={(e) => setRegGrade(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white"
-              />
+              >
+                <optgroup label="ระดับมัธยมศึกษาตอนต้น (ม.ต้น)">
+                  <option value="ม.1/1">มัธยมศึกษาปีที่ 1/1</option>
+                  <option value="ม.1/2">มัธยมศึกษาปีที่ 1/2</option>
+                  <option value="ม.1/3">มัธยมศึกษาปีที่ 1/3</option>
+                  <option value="ม.2/1">มัธยมศึกษาปีที่ 2/1</option>
+                  <option value="ม.2/2">มัธยมศึกษาปีที่ 2/2</option>
+                  <option value="ม.3/1">มัธยมศึกษาปีที่ 3/1</option>
+                  <option value="ม.3/2">มัธยมศึกษาปีที่ 3/2</option>
+                </optgroup>
+                <optgroup label="ระดับมัธยมศึกษาตอนปลาย (ม.ปลาย)">
+                  <option value="ม.4/1">มัธยมศึกษาปีที่ 4/1</option>
+                  <option value="ม.4/2">มัธยมศึกษาปีที่ 4/2</option>
+                  <option value="ม.5/1">มัธยมศึกษาปีที่ 5/1</option>
+                  <option value="ม.5/2">มัธยมศึกษาปีที่ 5/2</option>
+                  <option value="ม.6/1">มัธยมศึกษาปีที่ 6/1</option>
+                  <option value="ม.6/2">มัธยมศึกษาปีที่ 6/2</option>
+                </optgroup>
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">ตั้งรหัสผ่านเฉพาะตัว (PIN):</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="ตั้ง PIN 4-6 หลัก"
-                  value={regPin}
-                  onChange={(e) => setRegPin(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showRegPin ? 'text' : 'password'}
+                    required
+                    placeholder="ตั้ง PIN 4-6 หลัก"
+                    value={regPin}
+                    onChange={(e) => setRegPin(e.target.value)}
+                    className="w-full pl-3 pr-9 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPin(!showRegPin)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    title={showRegPin ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                  >
+                    {showRegPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">ยืนยันรหัสผ่านอีกครั้ง:</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="ยืนยัน PIN เดียวกัน"
-                  value={regConfirmPin}
-                  onChange={(e) => setRegConfirmPin(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type={showRegConfirmPin ? 'text' : 'password'}
+                    required
+                    placeholder="ยืนยัน PIN เดียวกัน"
+                    value={regConfirmPin}
+                    onChange={(e) => setRegConfirmPin(e.target.value)}
+                    className="w-full pl-3 pr-9 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegConfirmPin(!showRegConfirmPin)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                    title={showRegConfirmPin ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                  >
+                    {showRegConfirmPin ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
               </div>
+            </div>
+
+            {/* First-time PIN verification confirmation step */}
+            <div className="p-3 bg-[#0B192C]/90 rounded-xl border border-white/10 space-y-2 mt-2">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300 text-[11px] font-bold">ตรวจสอบและเปิดดูรหัสผ่านก่อนบันทึก:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !showRegPin;
+                    setShowRegPin(next);
+                    setShowRegConfirmPin(next);
+                  }}
+                  className="text-[11px] text-[#008DDA] hover:text-cyan-300 font-bold flex items-center gap-1"
+                >
+                  <Eye className="w-3.5 h-3.5" /> {showRegPin ? 'ซ่อนรหัสผ่านทั้งหมด' : 'เปิดดูรหัสผ่านทั้งหมด'}
+                </button>
+              </div>
+
+              <label className="flex items-start gap-2 cursor-pointer text-[11px] text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={hasVerifiedPinFirstTime}
+                  onChange={(e) => setHasVerifiedPinFirstTime(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-700 text-emerald-500 focus:ring-emerald-500"
+                />
+                <span>
+                  ฉันได้ตรวจสอบและยืนยันเปิดดูรหัสผ่านของตนเองเรียบร้อยแล้ว (จำเป็นต้องจดจำไว้เพื่อเข้าสู่ระบบ)
+                </span>
+              </label>
             </div>
 
             <button
@@ -330,13 +416,21 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-400" />
                 <input
-                  type="password"
+                  type={showTeacherPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
                   value={teacherPassword}
                   onChange={(e) => setTeacherPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
+                  className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all text-sm"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowTeacherPassword(!showTeacherPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  title={showTeacherPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                >
+                  {showTeacherPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
@@ -388,13 +482,21 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-amber-400" />
                 <input
-                  type="password"
+                  type={showAdminPassword ? 'text' : 'password'}
                   required
                   placeholder="••••••••"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-sm"
+                  className="w-full pl-10 pr-12 py-2.5 rounded-xl bg-[#0B192C]/90 border border-slate-700 text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all text-sm"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowAdminPassword(!showAdminPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  title={showAdminPassword ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน'}
+                >
+                  {showAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 

@@ -44,6 +44,7 @@ export default function TournamentManager() {
     roundName: 'รอบคัดเลือก (Qualifying)',
     startDate: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16),
     endDate: new Date(Date.now() + 180 * 60 * 1000).toISOString().slice(0, 16),
+    durationMinutes: 15,
     maxParticipants: 32,
     description: '',
     prizes: 'เกียรติบัตรและเหรียญรางวัล',
@@ -70,6 +71,7 @@ export default function TournamentManager() {
       roundName: 'รอบคัดเลือก (Qualifying)',
       startDate: new Date(Date.now() + 60 * 60 * 1000).toISOString().slice(0, 16),
       endDate: new Date(Date.now() + 180 * 60 * 1000).toISOString().slice(0, 16),
+      durationMinutes: 15,
       maxParticipants: 32,
       description: '',
       prizes: 'เกียรติบัตรและเหรียญรางวัล',
@@ -89,6 +91,7 @@ export default function TournamentManager() {
       roundName: tourney.roundName,
       startDate: new Date(tourney.startDate).toISOString().slice(0, 16),
       endDate: new Date(tourney.endDate).toISOString().slice(0, 16),
+      durationMinutes: tourney.durationMinutes || 15,
       maxParticipants: tourney.maxParticipants,
       description: tourney.description,
       prizes: tourney.prizes || '',
@@ -151,6 +154,7 @@ export default function TournamentManager() {
       updateTournament({
         ...editingTourney,
         ...formData,
+        durationMinutes: Number(formData.durationMinutes) || 15,
         categoryName: categoryNames[formData.category],
         divisionName: formData.division === 'junior' ? 'สาย ม.ต้น (ม.1 - ม.3)' : 'สาย ม.ปลาย (ม.4 - ม.6)',
         startDate: new Date(formData.startDate).toISOString(),
@@ -162,6 +166,7 @@ export default function TournamentManager() {
       addTournament({
         id: newId,
         ...formData,
+        durationMinutes: Number(formData.durationMinutes) || 15,
         categoryName: categoryNames[formData.category],
         divisionName: formData.division === 'junior' ? 'สาย ม.ต้น (ม.1 - ม.3)' : 'สาย ม.ปลาย (ม.4 - ม.6)',
         status: 'open',
@@ -463,6 +468,20 @@ export default function TournamentManager() {
                   value={formData.maxParticipants}
                   onChange={(e) => setFormData({ ...formData, maxParticipants: Number(e.target.value) })}
                   className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white text-xs"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">เวลาแข่งขันทางการ (นาที):</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  max="180"
+                  value={formData.durationMinutes || 15}
+                  onChange={(e) => setFormData({ ...formData, durationMinutes: Number(e.target.value) })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#0B192C] border border-slate-700 text-white text-xs font-mono"
+                  placeholder="เช่น 15, 20, 30 นาที"
                 />
               </div>
             </div>

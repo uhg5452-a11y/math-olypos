@@ -25,31 +25,39 @@ const isMockStudent = (item) => {
   );
 };
 
+// Helper to filter out legacy mock/sample tournaments
+const isMockTournament = (t) => {
+  if (!t || !t.id) return true;
+  return (
+    t.id.startsWith('tourney-amath-') ||
+    t.id.startsWith('tourney-sudoku-') ||
+    t.id.startsWith('tourney-checkers-') ||
+    t.id.startsWith('tourney-speedmath-') ||
+    t.id.startsWith('tourney-make24-') ||
+    t.id.startsWith('tourney-flash-')
+  );
+};
+
 export const storageService = {
-  // Tournaments
+  // Tournaments (Only real tournaments created by admin)
   getTournaments: () => {
     try {
       const data = localStorage.getItem(STORAGE_KEYS.TOURNAMENTS);
-      let list = data ? JSON.parse(data) : INITIAL_TOURNAMENTS;
-      if (!list || !list.some(t => t.division)) {
-        list = INITIAL_TOURNAMENTS;
-        localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(INITIAL_TOURNAMENTS));
-      } else {
-        // Ensure any new default tournament (e.g. Hall of Fame) is present
-        INITIAL_TOURNAMENTS.forEach(initT => {
-          if (!list.some(t => t.id === initT.id)) {
-            list.push(initT);
-          }
-        });
+      let list = data ? JSON.parse(data) : [];
+      // Clean out any legacy mock tournaments
+      const cleaned = (list || []).filter(t => !isMockTournament(t));
+      if (data && cleaned.length !== (list || []).length) {
+        localStorage.setItem(STORAGE_KEYS.TOURNAMENTS, JSON.stringify(cleaned));
       }
-      return list.map(t => ({
+      return cleaned.map(t => ({
         ...t,
+        durationMinutes: t.durationMinutes || 15,
         registeredStudents: (t.registeredStudents || []).filter(sid => !sid.startsWith('STU-2026-00')),
         forfeitedStudents: t.forfeitedStudents || [],
         matches: (t.matches || []).filter(m => !isMockStudent(m.player1) && !isMockStudent(m.player2))
       }));
     } catch {
-      return INITIAL_TOURNAMENTS;
+      return [];
     }
   },
 

@@ -232,6 +232,18 @@ export function AuthProvider({ children }) {
     realtimeService.sendEvent('system_sync', 'student_updated', { student: updatedStudent });
   };
 
+  // Delete student account (Admin only)
+  const deleteStudentAccount = (studentId) => {
+    const nextStudents = students.filter(s => s.studentId !== studentId && s.id !== studentId);
+    setStudents(nextStudents);
+    storageService.saveStudents(nextStudents);
+    realtimeService.sendEvent('system_sync', 'student_deleted', { studentId });
+    if (currentUser?.studentId === studentId || currentUser?.id === studentId) {
+      setCurrentUser(null);
+    }
+    return { success: true };
+  };
+
   // Strict RBAC
   const isAdmin = currentUser?.role === 'admin' && ADMIN_WHITELIST.includes(currentUser?.email?.toLowerCase());
   const isTeacher = currentUser?.role === 'teacher';
@@ -250,6 +262,7 @@ export function AuthProvider({ children }) {
         loginAdmin,
         logout,
         updateStudentData,
+        deleteStudentAccount,
         sendTeacherAnnouncement,
         announcements,
         liveAnnouncement,

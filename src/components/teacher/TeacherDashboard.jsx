@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   GraduationCap, Shield, Users, Radio, Play, Pause, RotateCcw, 
   Send, CheckCircle, AlertTriangle, Search, Key, Sparkles, Trophy, 
-  Clock, Check, X, Sliders, MessageSquare, AlertCircle, UserX, UserCheck
+  Clock, Check, X, Sliders, MessageSquare, AlertCircle, UserX, UserCheck, Flame
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTournaments } from '../../context/TournamentContext';
@@ -13,15 +13,15 @@ export default function TeacherDashboard() {
   const { 
     currentUser, 
     students, 
-    updateStudentData, 
     sendTeacherAnnouncement, 
     announcements 
   } = useAuth();
 
-  const { tournaments, toggleForfeitStudent } = useTournaments();
+  const { tournaments, toggleForfeitStudent, showToast } = useTournaments();
 
   const [activeTab, setActiveTab] = useState('rooms'); // 'rooms', 'roster', 'disputes', 'broadcast', 'students'
   const [selectedTourneyId, setSelectedTourneyId] = useState(tournaments[0]?.id || '');
+  const [matchStartedMap, setMatchStartedMap] = useState({});
 
   // Confirm Modal State
   const [confirmModal, setConfirmModal] = useState({
@@ -40,8 +40,8 @@ export default function TeacherDashboard() {
       id: 'M101',
       game: 'หมากฮอสไทย (Thai Checkers)',
       gameId: 'checkers',
-      p1: 'ผู้เล่น 1 (Cyan)',
-      p2: 'ผู้เล่น 2 (Red)',
+      p1: 'ผู้เล่น 1 (โต๊ะ A)',
+      p2: 'ผู้เล่น 2 (โต๊ะ B)',
       status: 'in_progress', // 'waiting', 'in_progress', 'paused', 'finished'
       scoreP1: 2,
       scoreP2: 1,
@@ -51,8 +51,8 @@ export default function TeacherDashboard() {
       id: 'AM-202',
       game: 'เอแมท (Standard 15x15 A-Math)',
       gameId: 'a-math',
-      p1: 'ผู้เล่น 1 (โต๊ะ A)',
-      p2: 'ผู้เล่น 2 (โต๊ะ B)',
+      p1: 'ผู้เล่น 1 (ฝ่ายฟ้า)',
+      p2: 'ผู้เล่น 2 (ฝ่ายแดง)',
       status: 'in_progress',
       scoreP1: 45,
       scoreP2: 38,
@@ -66,10 +66,8 @@ export default function TeacherDashboard() {
   const [broadcastUrgency, setBroadcastUrgency] = useState('urgent');
   const [broadcastSentSuccess, setBroadcastSentSuccess] = useState(false);
 
-  // Student Filter & PIN Reset State
+  // Student Filter
   const [studentSearch, setStudentSearch] = useState('');
-  const [editingPinStudent, setEditingPinStudent] = useState(null);
-  const [newPinValue, setNewPinValue] = useState('');
 
   // A-Math Disputes / Verification
   const [disputes, setDisputes] = useState([
@@ -109,15 +107,33 @@ export default function TeacherDashboard() {
     return () => unsub();
   }, []);
 
-  // Room Supervision Actions
+  // Room Supervision Actions & Teacher Controlled Start
+  const handleTeacherStartMatch = (tourneyId, roomId = null) => {
+    const targetRoomId = roomId || ('room_' + tourneyId);
+    realtimeService.sendEvent('match_control', 'start_match', {
+      action: 'start_match',
+      tournamentId: tourneyId,
+      roomId: targetRoomId,
+      timestamp: Date.now()
+    });
+
+    setMatchStartedMap(prev => ({ ...prev, [tourneyId]: true }));
+    showToast('ส่งสัญญาณเริ่มการแข่งขันแล้ว! ระบบกำลังนับถอยหลัง 3 2 1 START บนหน้าจอนักเรียน', 'success');
+  };
+
   const handleForceStart = (roomId) => {
-    realtimeService.sendEvent(roomId, 'match_control', { action: 'force_start' });
+    realtimeService.sendEvent('match_control', 'start_match', {
+      action: 'start_match',
+      roomId,
+      timestamp: Date.now()
+    });
     setActiveRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: 'in_progress' } : r));
+    showToast('ส่งคำสั่งเริ่มการแข่งขันในห้อง #' + roomId + ' เรียบร้อยแล้ว', 'success');
   };
 
   const handleTogglePause = (roomId, currentStatus) => {
     const newStatus = currentStatus === 'paused' ? 'in_progress' : 'paused';
-    realtimeService.sendEvent(roomId, 'match_control', { action: newStatus === 'paused' ? 'pause' : 'resume' });
+    realtimeService.sendEvent('match_control', 'match_action', { action: newStatus === 'paused' ? 'pause' : 'resume', roomId });
     setActiveRooms(prev => prev.map(r => r.id === roomId ? { ...r, status: newStatus } : r));
   };
 
@@ -130,7 +146,7 @@ export default function TeacherDashboard() {
       confirmText: 'ยกเลิกห้องแข่งขัน',
       type: 'danger',
       onConfirm: () => {
-        realtimeService.sendEvent(roomId, 'match_control', { action: 'cancel' });
+        realtimeService.sendEvent('match_control', 'cancel_room', { action: 'cancel', roomId });
         setActiveRooms(prev => prev.filter(r => r.id !== roomId));
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
       }
@@ -152,18 +168,6 @@ export default function TeacherDashboard() {
   // Resolve Dispute
   const handleResolveDispute = (disputeId, action) => {
     setDisputes(prev => prev.map(d => d.id === disputeId ? { ...d, status: action } : d));
-  };
-
-  // Save New PIN for Student
-  const handleSaveNewPin = (student) => {
-    if (!newPinValue.trim()) return;
-    const updated = {
-      ...student,
-      privatePin: newPinValue.trim()
-    };
-    updateStudentData(student.id, updated);
-    setEditingPinStudent(null);
-    setNewPinValue('');
   };
 
   // Toggle Forfeit Student with ConfirmModal
@@ -195,7 +199,8 @@ export default function TeacherDashboard() {
   // Filter students
   const filteredStudents = students.filter(s => 
     s.name.toLowerCase().includes(studentSearch.toLowerCase()) ||
-    s.studentId.toLowerCase().includes(studentSearch.toLowerCase())
+    s.studentId.toLowerCase().includes(studentSearch.toLowerCase()) ||
+    (s.grade && s.grade.toLowerCase().includes(studentSearch.toLowerCase()))
   );
 
   return (
@@ -212,7 +217,7 @@ export default function TeacherDashboard() {
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30">
                   Teacher Supervisor & Match Arbiter
                 </span>
-                <span className="text-xs text-slate-300 font-medium">โรงเรียนบรรหารแจ่มใสวิทยา 3</span>
+                <span className="text-xs text-slate-300 font-medium">โรงเรียนบรรหารแจ่มใสวิทยา 3 (บ.จ.3)</span>
               </div>
               <h2 className="text-2xl font-black text-white mt-1">
                 ระบบจัดการคุณครูและกรรมการผู้ตัดสินกลาง
@@ -257,7 +262,7 @@ export default function TeacherDashboard() {
               : 'bg-[#1E3E62]/60 text-slate-300 hover:text-white hover:bg-white/10'
           }`}
         >
-          <Trophy className="w-4 h-4" /> รายชื่อผู้สมัครรายทัวร์นาเมนต์
+          <Trophy className="w-4 h-4" /> รายชื่อผู้สมัคร & สั่งเริ่มแมตช์
         </button>
 
         <button
@@ -290,7 +295,7 @@ export default function TeacherDashboard() {
               : 'bg-[#1E3E62]/60 text-slate-300 hover:text-white hover:bg-white/10'
           }`}
         >
-          <Users className="w-4 h-4" /> ข้อมูลนักเรียน & กู้คืน PIN ({students.length})
+          <Users className="w-4 h-4" /> ข้อมูลนักเรียนในระบบ ({students.length})
         </button>
       </div>
 
@@ -301,7 +306,7 @@ export default function TeacherDashboard() {
             <h3 className="text-lg font-bold text-white flex items-center gap-2">
               <Radio className="w-5 h-5 text-emerald-400 animate-pulse" /> ห้องแข่งขันที่เปิดใช้งานอยู่
             </h3>
-            <span className="text-xs text-slate-400">กรรมการสามารถเข้าแทรกแซง สั่งเริ่ม หรือพักเกมได้แบบ Real-time</span>
+            <span className="text-xs text-slate-400">กรรมการสามารถสั่งเริ่มเกม ส่งสัญญาณนับ 3 2 1 START หรือพักเกมได้แบบ Real-time</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -318,7 +323,7 @@ export default function TeacherDashboard() {
                         room.status === 'paused' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
                         'bg-slate-500/20 text-slate-300'
                       }`}>
-                        {room.status === 'in_progress' ? '🟢 กำลังแข่งขัน' : room.status === 'paused' ? '⏸️ หยุดชั่วคราว' : 'รอผู้เล่น'}
+                        {room.status === 'in_progress' ? '🟢 กำลังแข่งขัน' : room.status === 'paused' ? '⏸️ หยุดชั่วคราว' : 'รอเริ่มเกม'}
                       </span>
                     </div>
                     <h4 className="text-base font-bold text-white mt-1">{room.game}</h4>
@@ -342,13 +347,14 @@ export default function TeacherDashboard() {
                   </div>
                 </div>
 
-                {/* Arbiter Action Buttons */}
+                {/* Arbiter Action Buttons with 3-2-1 Start */}
                 <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/10">
                   <button
                     onClick={() => handleForceStart(room.id)}
-                    className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                    className="px-3 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md shadow-emerald-500/20"
+                    title="เริ่มการแข่งขันและส่งสัญญาณนับถอยหลัง 3 2 1 START"
                   >
-                    <Play className="w-3.5 h-3.5" /> บังคับเริ่ม
+                    <Play className="w-3.5 h-3.5 fill-current" /> เริ่มแข่ง (3-2-1)
                   </button>
                   <button
                     onClick={() => handleTogglePause(room.id, room.status)}
@@ -369,16 +375,16 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 2: TOURNAMENT ROSTER & FORFEIT MANAGEMENT */}
+      {/* TAB 2: TOURNAMENT ROSTER & START MATCH CONTROL */}
       {activeTab === 'roster' && (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#1E3E62]/40 p-5 rounded-2xl border border-white/10">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-400" /> ตรวจสอบรายชื่อผู้สมัคร & สถานะการเข้าแข่งขัน
+                <Users className="w-5 h-5 text-emerald-400" /> ตรวจสอบผู้สมัคร & ปุ่มควบคุมการเริ่มแมตช์ (Arbiter Control)
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                เลือกทัวร์นาเมนต์เพื่อดูรายชื่อนักเรียนที่ลงทะเบียนทั้งหมด ตรวจสอบการรายงานตัว และตัดสิทธิ์ (Forfeit) กรณีขาดการแข่งขัน
+                เลือกทัวร์นาเมนต์เพื่อตรวจความพร้อม ตัดสิทธิ์ผู้เข้าแข่งขันที่สาย และกดเริ่มการแข่งขันให้นักเรียนพร้อมกัน
               </p>
             </div>
 
@@ -399,10 +405,10 @@ export default function TeacherDashboard() {
             </div>
           </div>
 
-          {currentTourney && (
+          {currentTourney ? (
             <div className="bg-[#1E3E62]/40 rounded-2xl border border-white/10 p-6 space-y-6">
-              {/* Tourney Info Card */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0B192C]/80 p-4 rounded-xl border border-white/10">
+              {/* Tourney Info & Teacher Start Match Button */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#0B192C]/80 p-5 rounded-xl border border-white/10">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black border ${
@@ -413,24 +419,28 @@ export default function TeacherDashboard() {
                       {currentTourney.divisionName || (currentTourney.division === 'junior' ? 'สาย ม.ต้น' : 'สาย ม.ปลาย')}
                     </span>
                     <span className="text-xs text-[#008DDA] font-bold">{currentTourney.categoryName}</span>
+                    <span className="text-xs text-amber-300 font-mono">เวลาแข่ง: {currentTourney.durationMinutes || 15} นาที</span>
                   </div>
-                  <h4 className="text-base font-black text-white">{currentTourney.title}</h4>
+                  <h4 className="text-lg font-black text-white">{currentTourney.title}</h4>
                   <div className="text-xs text-slate-400 mt-0.5">{currentTourney.roundName}</div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <div className="bg-[#1E3E62]/60 px-4 py-2 rounded-xl text-center border border-white/10">
-                    <div className="text-[10px] text-slate-400 font-bold">จำนวนผู้สมัคร</div>
-                    <div className="text-xl font-mono font-black text-white">
+                    <div className="text-[10px] text-slate-400 font-bold">ยอดผู้สมัคร</div>
+                    <div className="text-lg font-mono font-black text-white">
                       {currentTourney.registeredStudents?.length || 0} / {currentTourney.maxParticipants}
                     </div>
                   </div>
-                  <div className="bg-[#1E3E62]/60 px-4 py-2 rounded-xl text-center border border-white/10">
-                    <div className="text-[10px] text-rose-300 font-bold">ถูกตัดสิทธิ์</div>
-                    <div className="text-xl font-mono font-black text-rose-400">
-                      {currentTourney.forfeitedStudents?.length || 0}
-                    </div>
-                  </div>
+
+                  {/* MASTER START MATCH BUTTON: Triggers 3-2-1 countdown on students' screens! */}
+                  <button
+                    onClick={() => handleTeacherStartMatch(currentTourney.id)}
+                    className="px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-sm shadow-xl shadow-emerald-500/30 flex items-center gap-2 active:scale-95 transition-all border border-emerald-300"
+                  >
+                    <Flame className="w-5 h-5 fill-current animate-bounce text-slate-950" />
+                    <span>เริ่มการแข่งขัน (Start Match - 3,2,1!)</span>
+                  </button>
                 </div>
               </div>
 
@@ -518,6 +528,10 @@ export default function TeacherDashboard() {
                   </table>
                 </div>
               )}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-[#0B192C]/50 rounded-xl border border-dashed border-white/10 text-slate-400">
+              ยังไม่มีรอบการแข่งขันที่สร้างในระบบ
             </div>
           )}
         </div>
@@ -689,16 +703,16 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* TAB 5: STUDENT VERIFICATION & PIN RESET */}
+      {/* TAB 5: STUDENT INFORMATION (READ-ONLY FOR TEACHERS, NO PIN RESET PERMISSION) */}
       {activeTab === 'students' && (
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Users className="w-5 h-5 text-emerald-400" /> รายชื่อนักเรียนโรงเรียนบรรหารแจ่มใสวิทยา 3
+                <Users className="w-5 h-5 text-emerald-400" /> ข้อมูลนักเรียนโรงเรียนบรรหารแจ่มใสวิทยา 3
               </h3>
               <p className="text-xs text-slate-300 mt-0.5">
-                เฉพาะนักเรียนจริงที่ลงทะเบียนเท่านั้น (ไม่มีรายชื่อจำลอง) สามารถตรวจสอบและช่วยรีเซ็ตรหัส PIN ได้
+                รายชื่อนักเรียนจริงที่ลงทะเบียนในระบบ (คุณครูสามารถตรวจสอบความพร้อมได้ แต่ไม่มีสิทธิ์แก้ไขหรือรีเซ็ตรหัสผ่านของนักเรียน)
               </p>
             </div>
 
@@ -727,71 +741,50 @@ export default function TeacherDashboard() {
               <table className="w-full text-left text-xs text-slate-300">
                 <thead className="bg-[#0B192C]/80 text-slate-400 uppercase text-[10px] font-bold border-b border-white/10">
                   <tr>
+                    <th className="px-4 py-3">ลำดับ</th>
                     <th className="px-4 py-3">รหัสนักเรียน</th>
                     <th className="px-4 py-3">ชื่อ - นามสกุล</th>
                     <th className="px-4 py-3">ระดับชั้น</th>
-                    <th className="px-4 py-3">Math ELO</th>
-                    <th className="px-4 py-3">Private PIN</th>
-                    <th className="px-4 py-3 text-right">การจัดการ</th>
+                    <th className="px-4 py-3 text-center">สายการแข่งขัน</th>
+                    <th className="px-4 py-3 font-mono text-amber-400 text-center">Math ELO</th>
+                    <th className="px-4 py-3 text-right">สถานะบัญชี</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredStudents.map(student => (
-                    <tr key={student.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-4 py-3 font-mono font-bold text-[#008DDA]">
-                        {student.studentId}
-                      </td>
-                      <td className="px-4 py-3 font-bold text-white flex items-center gap-2">
-                        <span>{student.avatar || '🧑‍🎓'}</span> {student.name}
-                      </td>
-                      <td className="px-4 py-3 text-slate-300">
-                        {student.grade || 'มัธยมศึกษา'}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-amber-400 font-bold">
-                        {student.elo || 1500}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-emerald-400">
-                        {editingPinStudent?.id === student.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={newPinValue}
-                              onChange={(e) => setNewPinValue(e.target.value)}
-                              placeholder="PIN ใหม่"
-                              className="w-24 px-2 py-1 rounded bg-[#0B192C] border border-emerald-400 text-white text-xs"
-                            />
-                            <button
-                              onClick={() => handleSaveNewPin(student)}
-                              className="px-2 py-1 rounded bg-emerald-500 text-slate-950 font-bold text-[10px]"
-                            >
-                              บันทึก
-                            </button>
-                            <button
-                              onClick={() => setEditingPinStudent(null)}
-                              className="px-2 py-1 rounded bg-white/10 text-white text-[10px]"
-                            >
-                              ยกเลิก
-                            </button>
-                          </div>
-                        ) : (
-                          <span>•••••• (ซ่อนไว้)</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {editingPinStudent?.id !== student.id && (
-                          <button
-                            onClick={() => {
-                              setEditingPinStudent(student);
-                              setNewPinValue('');
-                            }}
-                            className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold flex items-center gap-1 ml-auto transition-all"
-                          >
-                            <Key className="w-3 h-3 text-amber-400" /> รีเซ็ตรหัส PIN
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredStudents.map((student, idx) => {
+                    const isJunior = (student.grade || '').includes('ม.1') || (student.grade || '').includes('ม.2') || (student.grade || '').includes('ม.3');
+                    return (
+                      <tr key={student.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3 font-mono text-slate-400">#{idx + 1}</td>
+                        <td className="px-4 py-3 font-mono font-bold text-[#008DDA]">
+                          {student.studentId}
+                        </td>
+                        <td className="px-4 py-3 font-bold text-white flex items-center gap-2">
+                          <span>{student.avatar || '🧑‍🎓'}</span> {student.name}
+                        </td>
+                        <td className="px-4 py-3 text-slate-300">
+                          {student.grade || 'มัธยมศึกษา'}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isJunior
+                              ? 'bg-blue-500/20 text-blue-300 border-blue-400/30'
+                              : 'bg-purple-500/20 text-purple-300 border-purple-400/30'
+                          }`}>
+                            {isJunior ? 'ม.ต้น' : 'ม.ปลาย'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-amber-400 font-bold text-center">
+                          {student.elo || 1500}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1">
+                            <CheckCircle className="w-3 h-3 text-emerald-400" /> ยืนยันตัวตนแล้ว
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -799,7 +792,7 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* CONFIRM MODAL (Replaces browser confirm) */}
+      {/* CONFIRM MODAL */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}

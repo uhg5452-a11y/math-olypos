@@ -60,6 +60,23 @@ export function TournamentProvider({ children }) {
       return false;
     }
 
+    // Strict Grade-Level Restriction Check (ม.ต้น vs ม.ปลาย)
+    const getStudentDivision = (gradeStr) => {
+      if (!gradeStr) return null;
+      const g = gradeStr.toLowerCase();
+      if (g.includes('ม.1') || g.includes('ม.2') || g.includes('ม.3') || g.includes('junior')) return 'junior';
+      if (g.includes('ม.4') || g.includes('ม.5') || g.includes('ม.6') || g.includes('senior')) return 'senior';
+      return null;
+    };
+
+    const userDivision = getStudentDivision(currentUser.grade);
+    if (tourney.division && userDivision && tourney.division !== userDivision) {
+      const tourneyDivName = tourney.division === 'junior' ? 'สาย ม.ต้น (ม.1 - ม.3)' : 'สาย ม.ปลาย (ม.4 - ม.6)';
+      const userDivName = userDivision === 'junior' ? 'สาย ม.ต้น' : 'สาย ม.ปลาย';
+      showToast(`การสมัครถูกล็อก: คุณอยู่ในระดับ ${userDivName} ไม่สามารถลงทะเบียนในรายการ "${tourneyDivName}" ได้`, 'error');
+      return false;
+    }
+
     // Update Tournament
     const updatedTournaments = tournaments.map(t => {
       if (t.id === tournamentId) {
